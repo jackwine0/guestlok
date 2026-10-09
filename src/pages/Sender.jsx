@@ -6,7 +6,8 @@ import { MessageScreen } from "../components/Page.jsx";
 import { formatEventDate, whatsappLink } from "../lib/format.js";
 import { renderMessage } from "../lib/invite.js";
 import { supabase } from "../lib/supabase.js";
-import { openWhatsApp, prepareTicketPreview } from "../lib/whatsappTicket.js";
+import { prepareTicketPreview } from "../lib/whatsappTicket.js";
+import WhatsAppButton from "../components/WhatsAppButton.jsx";
 import { useTitle } from "../lib/useTitle.js";
 
 /**
@@ -50,13 +51,12 @@ export default function Sender() {
   const first = data.label;
   const pct = guests.length ? Math.round((done.length / guests.length) * 100) : 0;
 
-  function send(e, g) {
-    // Open WhatsApp (with the ticket image added to the message), then mark as sent.
-    e.preventDefault();
-    openWhatsApp(e.currentTarget.href, prepareTicketPreview(event, g, { senderToken: token }));
+  // After the chat opens: mark as sent.
+  function sent(g) {
     supabase.rpc("sender_mark_sent", { p_token: token, p_guest: g.id }).then(() => {});
     setData((d) => ({ ...d, guests: d.guests.map((x) => (x.id === g.id ? { ...x, invite_sent_at: new Date().toISOString() } : x)) }));
   }
+  const prep = (g) => () => prepareTicketPreview(event, g, { senderToken: token });
 
   return (
     <main className="min-h-dvh bg-shell">
@@ -92,15 +92,15 @@ export default function Sender() {
             <p className="text-sm text-brown-soft">
               +{next.phone} · admits {next.admits}
             </p>
-            <a
+            <WhatsAppButton
+              key={next.id}
               href={whatsappLink(next.phone, renderMessage(event.invite_message, { guest: next, event }))}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => send(e, next)}
+              prepare={prep(next)}
+              onOpened={() => sent(next)}
               className="mt-4 btn-ochre btn-lg w-full"
             >
               <MessageCircle size={19} aria-hidden="true" /> Send on WhatsApp
-            </a>
+            </WhatsAppButton>
             <button
               type="button"
               onClick={() => setSkipped((s) => new Set(s).add(next.id))}
@@ -147,16 +147,15 @@ export default function Sender() {
                     {g.checked_in_at ? " · arrived" : ""}
                   </p>
                 </div>
-                <a
+                <WhatsAppButton
                   href={whatsappLink(g.phone, renderMessage(event.invite_message, { guest: g, event }))}
-                  target="_blank"
-                  rel="noreferrer"
-                  onPointerDown={() => prepareTicketPreview(event, g, { senderToken: token })}
-                  onClick={(e) => send(e, g)}
-                  className={`h-10 px-4 shrink-0 rounded-full text-sm font-medium inline-flex items-center gap-1.5 ${tab === "todo" ? "bg-ochre" : "bg-tile"}`}
+                  prepare={prep(g)}
+                  onOpened={() => sent(g)}
+                  busyLabel="Adding…"
+                  className={`h-10 px-4 shrink-0 rounded-full text-sm font-medium inline-flex items-center gap-1.5 whitespace-nowrap ${tab === "todo" ? "bg-ochre" : "bg-tile"}`}
                 >
                   <MessageCircle size={15} aria-hidden="true" /> {tab === "todo" ? "Send" : "Again"}
-                </a>
+                </WhatsAppButton>
               </li>
             ))}
             {(tab === "todo" ? todo : done).length === 0 && (

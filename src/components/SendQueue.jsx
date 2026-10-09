@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { whatsappLink } from "../lib/format.js";
 import { markInviteSent, renderMessage } from "../lib/invite.js";
 import { canShareFiles } from "../lib/ticketExport.jsx";
-import { openWhatsApp, prepareTicketPreview } from "../lib/whatsappTicket.js";
+import { prepareTicketPreview } from "../lib/whatsappTicket.js";
+import WhatsAppButton from "./WhatsAppButton.jsx";
 import Modal from "./Modal.jsx";
 import TicketButton from "./TicketButton.jsx";
 
@@ -77,19 +78,15 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <a
+              <WhatsAppButton
+                key={guest.id}
                 href={whatsappLink(guest.phone, message)}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => {
-                  e.preventDefault();
-                  openWhatsApp(e.currentTarget.href, prepareTicketPreview(event, guest));
-                  sent();
-                }}
+                prepare={() => prepareTicketPreview(event, guest)}
+                onOpened={sent}
                 className="btn-ochre btn-lg"
               >
                 <MessageCircle size={20} aria-hidden="true" /> Open chat with {guest.name.split(" ")[0]}
-              </a>
+              </WhatsAppButton>
               {share && (
                 <TicketButton guest={guest} event={event} message={message} onShared={sent} label="Share ticket image instead" className="btn-tile" />
               )}

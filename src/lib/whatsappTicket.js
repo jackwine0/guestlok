@@ -56,28 +56,14 @@ export function prepareTicketPreview(event, guest, { senderToken } = {}) {
   return promise;
 }
 
-/**
- * Opens the WhatsApp chat. If the ticket image is still being prepared, a tab opens right
- * away (so the browser doesn't block it) and moves to WhatsApp once the image is up,
- * or after a few seconds at most.
- */
-export function openWhatsApp(href, preparing) {
-  if (!preparing || preparing.state !== "pending") {
-    window.open(href, "_blank", "noopener");
-    return;
-  }
-  const tab = window.open("", "_blank");
+/** Opens a link in a new tab. Returns false when the browser blocked it. */
+export function openTab(href) {
+  const tab = window.open(href, "_blank");
+  if (!tab) return false;
   try {
-    tab?.document.write(
-      '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Opening WhatsApp…</title>' +
-        '<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#2B1B12;color:#F5E7A8;font:16px system-ui,sans-serif">Adding the ticket to the message…</body>',
-    );
+    tab.opener = null;
   } catch {
-    /* cross-origin or blocked: fine */
+    /* ignore */
   }
-  const go = () => {
-    if (tab && !tab.closed) tab.location.href = href;
-    else window.location.href = href;
-  };
-  Promise.race([preparing, new Promise((r) => setTimeout(r, 6000))]).then(go, go);
+  return true;
 }

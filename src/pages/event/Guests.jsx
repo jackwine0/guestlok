@@ -8,7 +8,8 @@ import Modal from "../../components/Modal.jsx";
 import SendQueue from "../../components/SendQueue.jsx";
 import ShareSending from "../../components/ShareSending.jsx";
 import TicketButton from "../../components/TicketButton.jsx";
-import { openWhatsApp, prepareTicketPreview } from "../../lib/whatsappTicket.js";
+import WhatsAppButton from "../../components/WhatsAppButton.jsx";
+import { prepareTicketPreview } from "../../lib/whatsappTicket.js";
 import { friendlyError } from "../../lib/errors.js";
 import { formatEventTime, inviteUrl, normalizePhone, whatsappLink } from "../../lib/format.js";
 import { downloadAttendance } from "../../lib/attendance.js";
@@ -529,20 +530,15 @@ function GuestRow({ guest, event, locked, onToast, onGuestlokSend }) {
           </button>
         )}
         {!locked && guest.phone && !onGuestlokSend && (
-          <a
+          <WhatsAppButton
             href={whatsappLink(guest.phone, message)}
-            target="_blank"
-            rel="noreferrer"
-            onPointerDown={() => prepareTicketPreview(event, guest)}
-            onClick={(e) => {
-              e.preventDefault();
-              openWhatsApp(e.currentTarget.href, prepareTicketPreview(event, guest));
-              markSent();
-            }}
-            className="flex-1 min-w-0 lg:flex-none h-10 px-4 rounded-full bg-ochre text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:brightness-95"
+            prepare={() => prepareTicketPreview(event, guest)}
+            onOpened={markSent}
+            busyLabel="Adding ticket…"
+            className="flex-1 min-w-0 lg:flex-none h-10 px-4 rounded-full bg-ochre text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:brightness-95 whitespace-nowrap"
           >
             <MessageCircle size={15} aria-hidden="true" /> WhatsApp
-          </a>
+          </WhatsAppButton>
         )}
         {!locked && (
           <TicketButton
