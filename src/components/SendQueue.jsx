@@ -1,6 +1,5 @@
 import { Check, ChevronRight, MessageCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { whatsappLink } from "../lib/format.js";
 import { markInviteSent, renderMessage } from "../lib/invite.js";
 import { canShareFiles } from "../lib/ticketExport.jsx";
@@ -12,20 +11,22 @@ import TicketButton from "./TicketButton.jsx";
  * WhatsApp doesn't allow apps to bulk-send from a normal number, so each send
  * opens the chat with the message ready and the host taps Send.
  */
-export default function SendQueue({ event, guests, onClose }) {
+export default function SendQueue({ event, guests, onClose, onShare }) {
   const [includeSent, setIncludeSent] = useState(false);
   // Freeze the list when the queue opens so it doesn't jump as guests get marked sent.
   const [snapshot] = useState(() => guests);
+  const [side, setSide] = useState("");
+  const sides = useMemo(() => [...new Set(snapshot.map((g) => g.side?.trim()).filter(Boolean))].sort(), [snapshot]);
   const queue = useMemo(
-    () => snapshot.filter((g) => g.phone && !g.checked_in_at && (includeSent || !g.invite_sent_at)),
-    [snapshot, includeSent],
+    () => snapshot.filter((g) => g.phone && !g.checked_in_at && (includeSent || !g.invite_sent_at) && (!side || g.side === side)),
+    [snapshot, includeSent, side],
   );
   const noPhone = snapshot.filter((g) => !g.phone).length;
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(() => new Set());
   const share = canShareFiles();
 
-  useEffect(() => setIndex(0), [includeSent]);
+  useEffect(() => setIndex(0), [includeSent, side]);
 
   const guest = queue[index];
   const finished = index >= queue.length;
@@ -87,13 +88,27 @@ export default function SendQueue({ event, guests, onClose }) {
           </>
         )}
 
-        {queue.length > 15 && !finished && (
-          <Link to={`/app/events/${event.id}/settings`} onClick={onClose} className="rounded-[20px] bg-brown text-cream px-4 py-3 text-sm flex items-center justify-between gap-3 hover:bg-black transition">
+        {queue.length > 15 && !finished && onShare && (
+          <button type="button" onClick={onShare} className="rounded-[20px] bg-brown text-cream px-4 py-3 text-sm flex items-center justify-between gap-3 text-left hover:bg-black transition">
             <span>
-              <b className="font-medium">{queue.length} to go?</b> Let Guestlok send them all in one tap.
+              <b className="font-medium">{queue.length - index} to go?</b> Share the list with family or your planner and send together.
             </span>
-            <span className="shrink-0 text-ochre font-medium">Plus →</span>
-          </Link>
+            <span className="shrink-0 text-ochre font-medium">Share →</span>
+          </button>
+        )}
+
+        {sides.length > 0 && (
+          <div className="flex items-center gap-2.5 text-sm">
+            <label htmlFor="queue-side" className="shrink-0 text-brown-soft">Send to</label>
+            <select id="queue-side" value={side} onChange={(e) => setSide(e.target.value)} className="field h-11 text-sm">
+              <option value="">Everyone</option>
+              {sides.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
 
         <label className="flex items-center gap-2.5 text-sm">

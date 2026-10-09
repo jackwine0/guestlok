@@ -14,8 +14,9 @@ Digital invitations with a single-use QR code for every guest. Only your guests 
 | Paystack checkout for plans, upgrades to Plus and extra WhatsApp sends | `supabase/functions/paystack-*`, `src/components/PaymentCard.jsx`, `src/components/PlusPanel.jsx` |
 | Event dashboard (bento overview, gate requests, guests by side) | `src/pages/EventDetail.jsx`, `src/pages/event/*` |
 | Guests: add, CSV import, sides, plus-ones, search and filters | `src/pages/event/Guests.jsx`, `src/components/GuestImport.jsx` |
-| **Standard** sending: one tap per guest from the host's WhatsApp | `src/components/SendQueue.jsx` |
-| **Plus** sending: Guestlok sends every invite from its WhatsApp number, with the ticket image and Sent / Delivered / Read status | `src/components/GuestlokSend.jsx`, `src/lib/guestlokSend.js`, `supabase/functions/whatsapp-*` |
+| **Standard** sending: one tap per guest from the host's WhatsApp, filter by side | `src/components/SendQueue.jsx` |
+| **Share the sending**: private links so family or a planner send their side's invites from their own WhatsApp; progress per helper | `src/components/ShareSending.jsx`, `src/pages/Sender.jsx` (`/send/:token`) |
+| **Plus** sending (switched off until WhatsApp is set up): Guestlok sends every invite from its WhatsApp number, with the ticket image and Sent / Delivered / Read status | `src/components/GuestlokSend.jsx`, `src/lib/guestlokSend.js`, `supabase/functions/whatsapp-*` |
 | Invitation designer: cover photo (fit/fill, drag, zoom), colour themes, WhatsApp message | `src/components/InvitationEditor.jsx` |
 | Guest invite page with personal QR, save as image/PDF | `src/pages/Invite.jsx` (`/i/:token`) |
 | Gate scanner: camera, single use, name lookup, "Ask the host" | `src/pages/Scanner.jsx` (`/scan/:eventId?k=…`) |
@@ -27,6 +28,8 @@ Plans are priced by headcount (`tiers` table). Every plan has every feature; the
 
 - **Standard:** the host sends from their own WhatsApp. Included.
 - **Plus:** Guestlok sends from the official number. Plan price **+30%** (at least ₦30 a guest), rounded up to ₦100. Includes sends for the plan size **+10%** for resends; extra sends are **₦100** each. Failed sends are given back.
+
+**Plus is switched off by default** (hidden on the site, refused at checkout) until the WhatsApp number is approved. Turn it on with `update pricing_settings set plus_enabled = true;`
 
 All of these numbers live in `public.pricing_settings` and can be changed without a deploy:
 
@@ -62,6 +65,7 @@ The app (`src/lib/pricing.js`) and the database (`gl_plus_extra_kobo`) use the s
    4. `20261009000000_cover_adjust.sql`
    5. `20261010000000_ending_events.sql` (optional pg_cron block at the end)
    6. `20261011000000_plus_delivery.sql`
+   7. `20261012000000_shared_sending.sql`
 3. Set your real prices (see *Pricing model*).
 4. **Auth → URL Configuration:** Site URL = your domain; add `http://localhost:5173` to Redirect URLs for local dev.
 
@@ -143,4 +147,4 @@ supabase/
 
 ## Roadmap
 
-Offline scanning · table seating · planner accounts (co-organisers and senders) · email invites · "claim your ticket" on WhatsApp.
+Offline scanning · table seating · planner accounts (co-organisers) · email invites · switch Plus on once WhatsApp is approved.

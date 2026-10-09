@@ -163,7 +163,7 @@ export default function Settings() {
             <a href="mailto:hello@guestlok.com?subject=Upgrade%20my%20plan" className="mt-5 btn w-full bg-tile hover:bg-sand">Need more space?</a>
           </section>
 
-          <PlusPanel event={event} tier={tier} settings={settings} />
+          {(event.delivery === "plus" || settings.plus_enabled) && <PlusPanel event={event} tier={tier} settings={settings} />}
 
           {!locked ? (
             <section className="rounded-[30px] sm:rounded-[36px] bg-white p-6 sm:p-8 ring-2 ring-coral/40" aria-labelledby="end-title">

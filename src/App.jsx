@@ -11,6 +11,7 @@ const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const NewEvent = lazy(() => import("./pages/NewEvent.jsx"));
 const EventDetail = lazy(() => import("./pages/EventDetail.jsx"));
 const Invite = lazy(() => import("./pages/Invite.jsx"));
+const Sender = lazy(() => import("./pages/Sender.jsx"));
 const Scanner = lazy(() => import("./pages/Scanner.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 const AppNotFound = lazy(() => import("./pages/AppNotFound.jsx"));
@@ -46,6 +47,7 @@ export default function App() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/i/:token" element={<Invite />} />
+        <Route path="/send/:token" element={<Sender />} />
         <Route path="/scan/:eventId" element={<Scanner />} />
         <Route
           path="/app"

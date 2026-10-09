@@ -72,7 +72,7 @@ export default function NewEvent() {
   const tier = tiers.find((t) => t.id === form.tierId) ?? recommended;
   const tooSmall = tier && tier.max_headcount < form.expected;
   const maxTier = tiers.length ? tiers[tiers.length - 1].max_headcount : 500;
-  const delivery = form.delivery === "plus" ? "plus" : "self";
+  const delivery = settings.plus_enabled && form.delivery === "plus" ? "plus" : "self";
   const total = planPriceKobo(tier, delivery, settings);
 
   const startsAt = (() => {
@@ -316,7 +316,9 @@ export default function NewEvent() {
                 <p className="mt-3 text-sm text-brown-soft">Every plan has the same features. Only the headcount changes.</p>
               </fieldset>
 
-              <DeliveryPicker tier={tier} settings={settings} value={delivery} onChange={(d) => setForm((f) => ({ ...f, delivery: d }))} />
+              {settings.plus_enabled && (
+                <DeliveryPicker tier={tier} settings={settings} value={delivery} onChange={(d) => setForm((f) => ({ ...f, delivery: d }))} />
+              )}
 
               <Nav onBack={() => go(0)} nextLabel="Review" disabled={!tier} />
             </form>
@@ -333,7 +335,7 @@ export default function NewEvent() {
                 <Summary icon={Clock} label="Time" value={startsAt ? `${formatEventTime(startsAt)} (Lagos)` : "—"} onEdit={() => go(0)} />
                 <Summary icon={MapPin} label="Venue" value={form.venue.trim()} onEdit={() => go(0)} />
                 <Summary icon={Users} label="Plan" value={`${tier.name} · up to ${tier.max_headcount.toLocaleString()} people`} onEdit={() => go(1)} />
-                <Summary icon={Send} label="Invites" value={`${DELIVERY[delivery].name}: ${DELIVERY[delivery].short}`} sub={DELIVERY[delivery].line} onEdit={() => go(1)} />
+                {settings.plus_enabled && <Summary icon={Send} label="Invites" value={`${DELIVERY[delivery].name}: ${DELIVERY[delivery].short}`} sub={DELIVERY[delivery].line} onEdit={() => go(1)} />}
               </div>
 
               {error && <ErrorNote>{error}</ErrorNote>}

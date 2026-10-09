@@ -1,4 +1,4 @@
-import { Download, Link2, MessageCircle, Minus, Plus, RotateCcw, Search, Send, Trash2, Upload, UserPlus, Users } from "lucide-react";
+import { Download, Link2, MessageCircle, Minus, Plus, RotateCcw, Search, Send, Share2, Trash2, Upload, UserPlus, Users } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { ButtonSpinner } from "../../components/Brand.jsx";
@@ -6,6 +6,7 @@ import GuestImport from "../../components/GuestImport.jsx";
 import GuestlokSend from "../../components/GuestlokSend.jsx";
 import Modal from "../../components/Modal.jsx";
 import SendQueue from "../../components/SendQueue.jsx";
+import ShareSending from "../../components/ShareSending.jsx";
 import TicketButton from "../../components/TicketButton.jsx";
 import { friendlyError } from "../../lib/errors.js";
 import { formatEventTime, inviteUrl, normalizePhone, whatsappLink } from "../../lib/format.js";
@@ -27,6 +28,7 @@ export default function Guests() {
   const { event, setEvent, guests, reloadGuests: reload } = useOutletContext();
   const plus = event.delivery === "plus";
   const [sendOnly, setSendOnly] = useState(null); // Plus: resend to one guest
+  const [sharing, setSharing] = useState(false);
   const [params, setParams] = useSearchParams();
   const [panel, setPanel] = useState(null); // 'add' | 'import' | null
   const [query, setQuery] = useState("");
@@ -121,6 +123,16 @@ export default function Guests() {
                 <Download size={18} aria-hidden="true" />
               </button>
             )}
+            {guests.length > 0 && !plus && (
+              <button
+                type="button"
+                onClick={() => setSharing(true)}
+                aria-haspopup="dialog"
+                className="h-[52px] px-3 sm:px-5 rounded-full bg-white inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition max-sm:col-span-2"
+              >
+                <Share2 size={18} aria-hidden="true" /> Share sending
+              </button>
+            )}
             {guests.length > 0 && (
               <button type="button" onClick={() => setSending(true)} className="col-span-2 h-[52px] px-5 rounded-full bg-ochre font-medium inline-flex items-center justify-center gap-2 hover:-translate-y-px transition">
                 <Send size={18} aria-hidden="true" /> Send all{unsent > 0 ? ` (${unsent})` : ""}
@@ -130,7 +142,18 @@ export default function Guests() {
         )}
       </div>
 
-      {sending && !plus && <SendQueue event={event} guests={guests} onClose={closeQueue} />}
+      {sending && !plus && (
+        <SendQueue
+          event={event}
+          guests={guests}
+          onClose={closeQueue}
+          onShare={() => {
+            closeQueue();
+            setSharing(true);
+          }}
+        />
+      )}
+      {sharing && <ShareSending event={event} guests={guests} onClose={() => setSharing(false)} />}
       {(sending && plus) || sendOnly ? (
         <GuestlokSend
           event={event}

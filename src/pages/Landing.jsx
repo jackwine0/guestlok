@@ -54,7 +54,7 @@ const COMPARE = [
 
 const FEATURES = [
   { title: "Plus-ones, your rules", body: "“Admits 2” means two. Nobody brings their whole street.", icon: UserPlus },
-  { title: "Sent on WhatsApp", body: "Every guest gets their own invite link, one tap each.", icon: Send },
+  { title: "Sent on WhatsApp", body: "Every guest gets their own invite. Family can share the sending.", icon: Send },
   { title: "Your invite, your style", body: "Your photo, your colours, your words.", icon: Palette },
   { title: "Name lookup", body: "Dead battery? Ushers find guests by name.", icon: Search },
   { title: "Ask the host", body: "Not on the list but insists? You decide from your phone.", icon: MessageCircleQuestion },
@@ -98,11 +98,11 @@ const FAQ = [
   },
   {
     q: "How much does it cost, and how do I pay?",
-    a: "One payment per event, based on how many people you’re expecting. Send the invites from your own WhatsApp at no extra cost, or choose Plus (about 30% more) and Guestlok sends every invite for you. Pay with card, bank transfer or USSD through Paystack. No subscriptions.",
+    a: "One payment per event, based on how many people you’re expecting. Every feature is included. Pay with card, bank transfer or USSD through Paystack. No subscriptions.",
   },
   {
-    q: "What’s the difference between Standard and Plus?",
-    a: "Same features, same gate. With Standard you send each invite from your phone, one tap per guest. With Plus, Guestlok sends all of them at once from our official WhatsApp number, with the ticket attached, and you see Sent, Delivered and Read for every guest. You can upgrade any time before the party.",
+    q: "Do I have to send 300 invites myself?",
+    a: "No. Share the sending: give your sister, your planner or each family a private link, and they send their own guests’ invites from their WhatsApp. People get their invite from someone they know, and you watch the progress from your dashboard.",
   },
   {
     q: "What happens after the party?",
@@ -675,7 +675,7 @@ const PLAN_INCLUDES = [
   "Gate scanner for all your ushers",
   "Name lookup and “Ask the host”",
   "Live dashboard and attendance download",
-  "Upgrade to Plus any time before the party",
+  "Share the sending with family or your planner",
 ];
 
 const SENDING = {
@@ -687,7 +687,8 @@ const SENDING = {
 function Pricing({ tiers, settings, session }) {
   const maxTier = tiers.length ? tiers[tiers.length - 1].max_headcount : 500;
   const [guests, setGuests] = useState(150);
-  const [delivery, setDelivery] = useState("self");
+  const [choice, setDelivery] = useState("self");
+  const delivery = settings.plus_enabled ? choice : "self";
   const best = useMemo(() => tiers.find((t) => t.max_headcount >= guests) ?? null, [tiers, guests]);
   const tooBig = tiers.length > 0 && !best;
   const price = (t) => planPriceKobo(t, delivery, settings);
@@ -706,7 +707,9 @@ function Pricing({ tiers, settings, session }) {
           <div className="flex flex-col gap-3">
             <span className="eyebrow">Pricing</span>
             <h2 className="land-h2">Pay once per event.</h2>
-            <p className="land-sub max-w-md">Priced by headcount. No subscriptions. Every plan has every feature. You only choose who sends the invites.</p>
+            <p className="land-sub max-w-md">
+              Priced by headcount. No subscriptions. Every plan has every feature{settings.plus_enabled ? ". You only choose who sends the invites." : "."}
+            </p>
           </div>
 
           {/* Headcount picker */}
@@ -755,7 +758,8 @@ function Pricing({ tiers, settings, session }) {
           </div>
         </div>
 
-        {/* Who sends the invites */}
+        {/* Who sends the invites (only while Plus is switched on) */}
+        {settings.plus_enabled && (
         <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-5">
           <div role="radiogroup" aria-label="Who sends the invites?" className="grid grid-cols-2 p-[5px] rounded-full bg-white w-full md:w-auto md:inline-grid shrink-0">
             {["self", "plus"].map((d) => (
@@ -780,6 +784,7 @@ function Pricing({ tiers, settings, session }) {
             {SENDING[delivery].line}
           </p>
         </div>
+        )}
 
         {/* Plans */}
         <div className="grid gap-3 sm:gap-4 grid-cols-1 md:grid-cols-3 -mt-2 sm:-mt-4">

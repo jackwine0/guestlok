@@ -30,7 +30,7 @@ export default function PaymentCard({ event, onEventChange, notice, showSteps = 
   const [editing, setEditing] = useState(false);
 
   const tier = tiers.find((t) => t.id === event.tier_id);
-  const delivery = event.delivery === "plus" ? "plus" : "self";
+  const delivery = settings.plus_enabled && event.delivery === "plus" ? "plus" : "self";
   const total = planPriceKobo(tier, delivery, settings);
 
   async function changeDelivery(d) {
@@ -137,7 +137,7 @@ export default function PaymentCard({ event, onEventChange, notice, showSteps = 
             </div>
           </fieldset>
 
-          <DeliveryPicker tier={tier} settings={settings} value={delivery} onChange={changeDelivery} />
+          {settings.plus_enabled && <DeliveryPicker tier={tier} settings={settings} value={delivery} onChange={changeDelivery} />}
 
           <button type="button" onClick={deleteDraft} className="self-start inline-flex items-center gap-2 text-sm text-brown-soft hover:text-[#9A3324]">
             <Trash2 size={15} aria-hidden="true" /> Delete this draft

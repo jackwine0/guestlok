@@ -47,6 +47,11 @@ Deno.serve(async (req) => {
     let invites: number | null = null
     let label = tier.name
 
+    const plusOn = settings?.plus_enabled === true
+    if (!plusOn && (kind !== 'plan' || body.delivery === 'plus')) {
+      return json({ error: 'Guestlok sending isn’t available yet. Send invites from your own WhatsApp for now.' }, 409)
+    }
+
     if (kind === 'plan') {
       if (event.status !== 'draft') return json({ error: 'This event is already paid for.' }, 409)
       delivery = body.delivery === 'plus' ? 'plus' : 'self'

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase.js";
 
 // Fallback until the Plus migration has been run (matches its defaults).
-export const DEFAULT_PRICING = { plus_pct: 30, plus_min_guest_kobo: 3000, extra_invite_kobo: 10000, resend_pct: 10 };
+export const DEFAULT_PRICING = { plus_pct: 30, plus_min_guest_kobo: 3000, extra_invite_kobo: 10000, resend_pct: 10, plus_enabled: false };
 
 /** What Plus adds to a plan, in kobo. Mirrors public.gl_plus_extra_kobo() so the app and checkout agree. */
 export function plusExtraKobo(tier, s = DEFAULT_PRICING) {
