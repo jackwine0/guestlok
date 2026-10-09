@@ -5,15 +5,15 @@ const FLOW = ["Event details", "Guests & plan", "Pay", "Set up"];
 
 export default function FlowSteps({ current, className = "" }) {
   return (
-    <ol className={`flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] ${className}`} aria-label="Progress">
+    <ol className={`flex items-center gap-1.5 max-sm:w-full overflow-x-auto [scrollbar-width:none] ${className}`} aria-label="Progress">
       {FLOW.map((label, i) => {
         const done = i < current;
         const active = i === current;
         return (
-          <li key={label} className="flex items-center gap-1.5 shrink-0">
+          <li key={label} className={`flex items-center gap-1.5 ${i < FLOW.length - 1 ? "max-sm:grow" : ""} shrink-0`}>
             <span
               aria-current={active ? "step" : undefined}
-              className={`h-10 pl-1.5 pr-4 rounded-full inline-flex items-center gap-2 text-sm transition ${
+              className={`h-10 pl-1.5 ${active ? "pr-4 max-[359px]:pr-1.5" : "pr-1.5 sm:pr-4"} shrink-0 rounded-full inline-flex items-center gap-2 text-sm transition ${
                 active ? "bg-brown text-cream" : done ? "bg-white" : "bg-white/50 text-brown-soft"
               }`}
             >
@@ -24,10 +24,10 @@ export default function FlowSteps({ current, className = "" }) {
               >
                 {done ? <Check size={14} strokeWidth={2.6} aria-hidden="true" /> : i + 1}
               </span>
-              <span className={active ? "" : "max-sm:hidden"}>{label}</span>
+              <span className={active ? "max-[359px]:sr-only" : "max-sm:hidden"}>{label}</span>
               {done && <span className="sr-only">(done)</span>}
             </span>
-            {i < FLOW.length - 1 && <span className={`w-4 h-[2px] rounded-full ${done ? "bg-leaf" : "bg-white"}`} aria-hidden="true" />}
+            {i < FLOW.length - 1 && <span className={`w-4 max-sm:flex-1 max-sm:min-w-2 h-[2px] rounded-full ${done ? "bg-leaf" : "bg-white"}`} aria-hidden="true" />}
           </li>
         );
       })}

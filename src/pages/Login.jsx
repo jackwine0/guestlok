@@ -92,7 +92,7 @@ export default function Login() {
       setError("Type your email above first, then tap “Forgot password”.");
       return;
     }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
     if (error) setError(error.message);
     else setNotice("Check your inbox. We sent you a link to reset your password.");
   }

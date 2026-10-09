@@ -1,15 +1,17 @@
 import { LogOut } from "lucide-react";
 import { Suspense } from "react";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth.jsx";
 import { useFeedback } from "../lib/feedback.js";
 import { supabase } from "../lib/supabase.js";
 import { Loader, Wordmark } from "./Brand.jsx";
+import ErrorBoundary from "./ErrorBoundary.jsx";
 
 /** Signed-in layout: warm grey canvas, white bento cards, pill controls. */
 export default function AppShell() {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -48,9 +50,11 @@ export default function AppShell() {
         </div>
       </header>
       <main className="flex-1 mx-auto w-full max-w-[1440px] px-4 sm:px-7 pt-2 pb-12">
-        <Suspense fallback={<Loader />}>
-          <Outlet />
-        </Suspense>
+        <ErrorBoundary compact resetKey={pathname}>
+          <Suspense fallback={<Loader />}>
+            <Outlet />
+          </Suspense>
+        </ErrorBoundary>
       </main>
     </div>
   );

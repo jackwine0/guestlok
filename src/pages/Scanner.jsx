@@ -5,6 +5,8 @@ import {
   Flashlight,
   FlashlightOff,
   MessageCircleQuestion,
+  Pause,
+  Play,
   QrCode,
   RefreshCw,
   Search,
@@ -402,8 +404,9 @@ function ScanTab({ eventId, scannerKey, paused, onResult, onCameraFail }) {
   const [state, setState] = useState("starting"); // starting | ready | error
   const [checking, setChecking] = useState(false);
   const [torch, setTorch] = useState({ supported: false, on: false });
+  const [held, setHeld] = useState(false); // usher tapped Pause
 
-  pausedRef.current = paused;
+  pausedRef.current = paused || held;
 
   // When a result screen closes, ignore the same code for 8 more seconds,
   // so a guest still holding their phone up isn't scanned again as "Used".
@@ -496,6 +499,21 @@ function ScanTab({ eventId, scannerKey, paused, onResult, onCameraFail }) {
     };
   }, [attempt]);
 
+  // Pause freezes the camera and stops reading codes until the usher taps Resume.
+  function togglePause() {
+    const reader = readerRef.current;
+    const next = !held;
+    setHeld(next);
+    try {
+      if (next) {
+        if (torch.on) toggleTorch();
+        reader?.pause(true);
+      } else reader?.resume();
+    } catch {
+      /* camera not running yet; the ref above still blocks decoding */
+    }
+  }
+
   async function toggleTorch() {
     const next = !torch.on;
     try {
@@ -509,7 +527,7 @@ function ScanTab({ eventId, scannerKey, paused, onResult, onCameraFail }) {
   return (
     <div ref={containerRef} className="relative flex-1 min-h-[300px] rounded-[32px] overflow-hidden bg-black">
       {/* Viewfinder: dimmed surround, ochre corners, glowing line */}
-      {state !== "error" && (
+      {state !== "error" && !held && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className={`relative w-[72%] max-w-[290px] md:max-w-[380px] aspect-square rounded-[28px] shadow-[0_0_0_9999px_rgba(20,12,8,0.55)] transition ${checking ? "scale-[0.97]" : ""}`}>
             {["left-0 top-0 border-l-4 border-t-4 rounded-tl-[28px]", "right-0 top-0 border-r-4 border-t-4 rounded-tr-[28px]", "left-0 bottom-0 border-l-4 border-b-4 rounded-bl-[28px]", "right-0 bottom-0 border-r-4 border-b-4 rounded-br-[28px]"].map((c) => (
@@ -535,7 +553,31 @@ function ScanTab({ eventId, scannerKey, paused, onResult, onCameraFail }) {
         </div>
       )}
 
-      {state === "ready" && torch.supported && (
+      {state === "ready" && !held && (
+        <button
+          type="button"
+          onClick={togglePause}
+          aria-label="Pause scanning"
+          className="absolute left-4 top-4 z-10 h-12 pl-4 pr-5 rounded-full inline-flex items-center gap-2 text-[15px] font-medium backdrop-blur transition bg-black/45 text-cream"
+        >
+          <Pause size={18} aria-hidden="true" /> Pause
+        </button>
+      )}
+
+      {held && state === "ready" && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-8 text-center bg-[#1F140D]/80 backdrop-blur-sm">
+          <span className="w-16 h-16 rounded-full bg-white/10 inline-flex items-center justify-center">
+            <Pause size={26} aria-hidden="true" />
+          </span>
+          <p className="text-[22px] tracking-[-0.02em]">Scanning paused</p>
+          <p className="text-sand text-[15px] max-w-xs">No codes are read while paused. Tap resume when the next guest is ready.</p>
+          <button type="button" onClick={togglePause} className="btn-ochre btn-lg mt-1">
+            <Play size={17} aria-hidden="true" /> Resume scanning
+          </button>
+        </div>
+      )}
+
+      {state === "ready" && torch.supported && !held && (
         <button
           type="button"
           onClick={toggleTorch}

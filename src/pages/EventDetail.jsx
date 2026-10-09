@@ -1,16 +1,17 @@
 import { ArrowLeft, LayoutGrid, Mail, ScanLine, Settings, Users } from "lucide-react";
-import { Suspense, useCallback, useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useParams, useSearchParams } from "react-router-dom";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader } from "../components/Brand.jsx";
 import FlowSteps from "../components/FlowSteps.jsx";
 import { EmptyState, StatusChip } from "../components/Page.jsx";
 import PaymentCard from "../components/PaymentCard.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
+import { useFeedback } from "../lib/feedback.js";
 import { formatEventTime, formatShortDate } from "../lib/format.js";
 import { supabase } from "../lib/supabase.js";
 import { useTitle } from "../lib/useTitle.js";
 import { preloadSections } from "./event/sections.js";
-import { useTabCommitted, useTabNavigate } from "../lib/tabTransition.js";
+import { useSlidingPill } from "../lib/tabTransition.js";
 
 
 const SECTION_TITLES = { guests: "Guests", invitation: "Invitation", gate: "Gate", settings: "Settings" };
@@ -30,6 +31,11 @@ export default function EventDetail() {
   const [payNotice, setPayNotice] = useState(null);
   const [welcome, setWelcome] = useState(false);
   const [requests, setRequests] = useState([]);
+  const { toast } = useFeedback();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const pathnameRef = useRef(location.pathname);
+  pathnameRef.current = location.pathname;
 
   const loadEvent = useCallback(async () => {
     if (!id) return;
@@ -61,7 +67,6 @@ export default function EventDetail() {
   }, [id]);
 
   useEffect(preloadSections, []);
-  useTabCommitted();
 
   useEffect(() => {
     Promise.all([loadEvent(), loadGuests(), loadRequests()]).finally(() => setLoading(false));
@@ -96,11 +101,16 @@ export default function EventDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Live updates from the gate
+  // Live updates from the gate. Phones drop the live connection when the screen
+  // sleeps or the app is in the background, so we also refresh when the page comes
+  // back, when the connection returns, and every 20s as a safety net.
+  const [reconnect, setReconnect] = useState(0);
   useEffect(() => {
     if (!id) return;
+    let wasDown = false;
+    let retry = null;
     const channel = supabase
-      .channel(`guests-${id}`)
+      .channel(`event-${id}-${reconnect}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "guests", filter: `event_id=eq.${id}` }, (payload) => {
         setGuests((current) => {
           if (payload.eventType === "DELETE") return current.filter((g) => g.id !== payload.old.id);
@@ -113,13 +123,67 @@ export default function EventDetail() {
       .on("postgres_changes", { event: "*", schema: "public", table: "gate_requests", filter: `event_id=eq.${id}` }, () => {
         loadRequests();
       })
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          if (wasDown) {
+            loadGuests();
+            loadRequests();
+          }
+          wasDown = false;
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          wasDown = true;
+          clearTimeout(retry);
+          if (status !== "CLOSED") retry = setTimeout(() => setReconnect((n) => n + 1), 4000);
+        }
+      });
     return () => {
+      clearTimeout(retry);
       supabase.removeChannel(channel);
     };
-  }, [id, loadRequests]);
+  }, [id, reconnect, loadGuests, loadRequests]);
 
-  const { pathname } = useLocation();
+  useEffect(() => {
+    if (!id) return;
+    let last = 0;
+    const refresh = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 2000) return;
+      last = Date.now();
+      loadGuests();
+      loadRequests();
+    };
+    const poll = setInterval(() => {
+      if (document.visibilityState === "visible") loadRequests();
+    }, 20000);
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    return () => {
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+    };
+  }, [id, loadGuests, loadRequests]);
+
+  // Tell the host when someone new is waiting at the gate, wherever they are in the event.
+  const seenRequests = useRef(null);
+  useEffect(() => {
+    const ids = new Set(requests.map((r) => r.id));
+    const seen = seenRequests.current;
+    seenRequests.current = ids;
+    if (!seen || loading) return;
+    const fresh = requests.filter((r) => !seen.has(r.id));
+    if (!fresh.length) return;
+    navigator.vibrate?.([120, 60, 120]);
+    const who = fresh.length === 1 ? `${fresh[0].name || "Someone"} is` : `${fresh.length} people are`;
+    toast(`${who} asking to come in at the gate`, {
+      tone: "info",
+      duration: 9000,
+      action: pathnameRef.current.endsWith(id) ? null : { label: "View", onClick: () => navigate(`/app/events/${id}`) },
+    });
+  }, [requests, loading, id, toast, navigate]);
+
+  const { pathname } = location;
   const section = SECTION_TITLES[pathname.split("/").pop()] ?? (event?.status === "draft" ? "Checkout" : "Overview");
   useTitle(section, event?.name);
 
@@ -178,7 +242,7 @@ export default function EventDetail() {
       {payNotice && live && <p role="status" className="bg-white rounded-[24px] px-6 py-4 font-medium">{payNotice}</p>}
       {live ? (
         <Suspense fallback={<Loader label="Loading" />}>
-          <div className="gl-vt-page flex flex-col gap-[18px]">
+          <div key={pathname} className="gl-tab-in flex flex-col gap-[18px]">
             <Outlet context={{ event, setEvent, guests, reloadGuests: loadGuests, requests, reloadRequests: loadRequests }} />
           </div>
         </Suspense>
@@ -190,8 +254,12 @@ export default function EventDetail() {
   );
 }
 
+const EASE = "duration-[420ms] ease-[cubic-bezier(.3,1.25,.45,1)]";
+
 function SectionNav({ guests, requests }) {
-  const go = useTabNavigate();
+  const { pathname } = useLocation();
+  const trackRef = useRef(null);
+  const pill = useSlidingPill(trackRef, pathname);
   const items = [
     { to: "", end: true, label: "Overview", badge: requests || null, alert: true },
     { to: "guests", label: "Guests", badge: guests.length || null },
@@ -201,23 +269,19 @@ function SectionNav({ guests, requests }) {
   ];
   return (
     <nav aria-label="Event sections" className="max-w-full overflow-x-auto [scrollbar-width:none] rounded-full">
-      <ul className="inline-flex gap-1 p-[5px] rounded-full bg-white">
-        {items.map(({ to, end, label, badge, alert }, i) => (
+      <ul ref={trackRef} className="relative isolate inline-flex gap-1 p-[5px] rounded-full bg-white">
+        <li aria-hidden="true" className={`absolute left-0 top-0 -z-10 rounded-full bg-brown transition-[transform,width] ${EASE}`} style={pill} />
+        {items.map(({ to, end, label, badge, alert }) => (
           <li key={label} className="shrink-0">
             <NavLink
               to={to}
               end={end}
-              onClick={go}
               className={({ isActive }) =>
-                `h-[42px] px-[18px] rounded-full inline-flex items-center gap-2 text-[15px] ${
-                  isActive ? "relative isolate text-cream" : "text-brown-soft hover:text-brown transition-colors"
+                `h-[42px] px-[18px] rounded-full inline-flex items-center gap-2 text-[15px] transition-colors duration-300 ${
+                  isActive ? "text-cream" : "text-brown-soft hover:text-brown"
                 }`
               }
             >
-              {({ isActive }) => (
-                <>
-                  {isActive && <span className="gl-vt-tab absolute inset-0 -z-10 rounded-full bg-brown" aria-hidden="true" />}
-                  <span className={`inline-flex items-center gap-2 gl-vt-ink-${i}`}>
               {label}
               {badge != null && (
                 <span
@@ -228,9 +292,6 @@ function SectionNav({ guests, requests }) {
                 >
                   {badge}
                 </span>
-              )}
-                  </span>
-                </>
               )}
             </NavLink>
           </li>
@@ -247,53 +308,78 @@ const PHONE_ITEMS = [
   { to: "gate", label: "Gate", icon: ScanLine },
   { to: "settings", label: "Settings", icon: Settings },
 ];
+const GROW = 3; // the active tab is this many times wider than the others
 
+/**
+ * Phones: icon tabs; the active one widens to show its label. Widths animate with
+ * flex-grow and the pill moves with the same timing, so both stay in step.
+ */
 function PhoneNav({ guests, requests }) {
-  const go = useTabNavigate();
+  const { pathname } = useLocation();
+  const base = pathname.replace(/\/$/, "");
+  const last = base.split("/").pop();
+  const active = Math.max(0, PHONE_ITEMS.findIndex((it) => it.to === last));
   const counts = { requests: requests || null, guests: guests.length || null };
+  const gap = 4;
+  const units = PHONE_ITEMS.length - 1 + GROW;
   return (
-    <nav aria-label="Event sections">
-      <ul className="flex gap-1 p-[5px] rounded-full bg-white">
+    <nav aria-label="Event sections" className="p-[5px] rounded-full bg-white">
+      <ul className="relative isolate flex gap-1">
+        <li
+          aria-hidden="true"
+          className={`absolute inset-y-0 left-0 -z-10 rounded-full bg-brown transition-transform motion-reduce:transition-none ${EASE}`}
+          style={{
+            width: `calc((100% - ${gap * (PHONE_ITEMS.length - 1)}px) * ${GROW / units})`,
+            transform: `translateX(calc(${active} * (100% / ${GROW} + ${gap}px)))`,
+          }}
+        />
         {PHONE_ITEMS.map(({ to, end, label, icon: Icon, key, alert }, i) => {
           const badge = key ? counts[key] : null;
+          const on = i === active;
           return (
-            <li key={label} className="flex-1 has-[.active]:flex-none min-w-0">
+            <li
+              key={label}
+              className={`min-w-0 basis-0 transition-[flex-grow] motion-reduce:transition-none ${EASE}`}
+              style={{ flexGrow: on ? GROW : 1 }}
+            >
               <NavLink
                 to={to}
                 end={end}
                 aria-label={label}
-                onClick={go}
-                className={({ isActive }) =>
-                  `h-11 w-full rounded-full flex items-center justify-center gap-2 text-[15px] select-none [-webkit-tap-highlight-color:transparent] active:scale-[0.94] transition-transform duration-100 ${
-                    isActive ? "active relative isolate text-cream px-4" : "text-brown-soft active:bg-tile"
-                  }`
-                }
+                className={`h-11 w-full rounded-full flex items-center justify-center text-[15px] max-[359px]:text-[14px] select-none [-webkit-tap-highlight-color:transparent] transition-[color,transform] duration-200 active:scale-[0.94] ${
+                  on ? "text-cream" : "text-brown-soft"
+                }`}
               >
-                {({ isActive }) => {
-                  const pill = badge != null && (
+                <span className="relative shrink-0">
+                  <Icon size={20} aria-hidden="true" />
+                  {badge != null && !on && (
                     <span
-                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-medium tabular-nums inline-flex items-center justify-center ${
-                        isActive ? "" : "absolute -top-2 left-3 ring-2 ring-white"
-                      } ${alert ? "bg-coral text-white" : "bg-ochre text-brown"}`}
+                      className={`absolute -top-2 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-medium tabular-nums inline-flex items-center justify-center ring-2 ring-white ${
+                        alert ? "bg-coral text-white" : "bg-ochre text-brown"
+                      }`}
                       aria-label={alert ? `${badge} waiting at the gate` : `${badge} guests`}
                     >
                       {badge > 99 ? "99+" : badge}
                     </span>
-                  );
-                  return (
-                    <>
-                      {isActive && <span className="gl-vt-tab absolute inset-0 -z-10 rounded-full bg-brown" aria-hidden="true" />}
-                      <span className={`inline-flex items-center gap-2 gl-vt-ink-${i}`}>
-                      <span className="relative shrink-0">
-                        <Icon size={20} aria-hidden="true" />
-                        {!isActive && pill}
-                      </span>
-                      {isActive && <span className="whitespace-nowrap" aria-hidden="true">{label}</span>}
-                      {isActive && pill}
-                      </span>
-                    </>
-                  );
-                }}
+                  )}
+                </span>
+                <span
+                  className={`overflow-hidden whitespace-nowrap inline-flex items-center gap-1.5 transition-[max-width,opacity,margin] duration-300 ${
+                    on ? "max-w-[120px] opacity-100 ml-2" : "max-w-0 opacity-0 ml-0"
+                  }`}
+                >
+                  <span aria-hidden="true">{label}</span>
+                  {badge != null && on && (
+                    <span
+                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-medium tabular-nums inline-flex items-center justify-center ${
+                        alert ? "bg-coral text-white" : "bg-ochre text-brown"
+                      }`}
+                      aria-label={alert ? `${badge} waiting at the gate` : `${badge} guests`}
+                    >
+                      {badge > 99 ? "99+" : badge}
+                    </span>
+                  )}
+                </span>
               </NavLink>
             </li>
           );

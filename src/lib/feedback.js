@@ -7,6 +7,7 @@ import { createContext, useContext } from "react";
  *   const { toast, confirm, ask } = useFeedback();
  *   toast("Saved");                                  // success by default
  *   toast("Couldn’t save", { tone: "error" });
+ *   toast("Ada is at the gate", { tone: "info", action: { label: "View", onClick } });
  *   if (await confirm({ title: "End event?", body: "…", confirmLabel: "End event", danger: true })) …
  *   const name = await ask({ title: "What should we call you?", label: "Your name" });
  */

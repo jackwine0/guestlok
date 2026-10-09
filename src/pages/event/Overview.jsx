@@ -55,6 +55,12 @@ export default function Overview() {
           ? <><b>{days} day{days === 1 ? "" : "s"}</b> to go · {unsent} invite{unsent === 1 ? "" : "s"} still to send</>
           : <><b>{days} day{days === 1 ? "" : "s"}</b> to go{guests.length ? " · everyone has their invite" : ""}</>;
 
+  const waiting = event.status !== "ended" && requests.length > 0;
+  const decided = () => {
+    reloadRequests?.();
+    reloadGuests?.();
+  };
+
   const tiles = onTheDay
     ? [
         { label: event.status === "ended" ? <>Guests<br />who came</> : <>Guests in<br />the hall</>, value: arrived, chip: lastQuarter ? `+${lastQuarter} ↗` : null, chipTone: "up" },
@@ -70,9 +76,11 @@ export default function Overview() {
   return (
     <div className="flex flex-col gap-[18px]">
       {event.status === "ended" && <EndedPanel event={event} guests={guests} onEventChange={setEvent} />}
-    <div className="grid gap-[18px] grid-cols-1 min-[1180px]:grid-cols-[minmax(0,1.08fr)_minmax(0,1.92fr)] items-stretch">
-      {/* Overview */}
-      <section className="bento flex flex-col" aria-labelledby="ov-title">
+      {/* Someone waiting at the gate comes first: it can't wait. */}
+      {waiting && <GateRequests wide requests={requests} onDecided={decided} />}
+    <div className="grid gap-[18px] grid-cols-1 min-[1180px]:grid-cols-[minmax(0,1.08fr)_minmax(0,1.92fr)] items-start">
+      {/* Overview: stays in view on wide screens while the right side scrolls */}
+      <section className="bento flex flex-col min-[1180px]:sticky min-[1180px]:top-[160px]" aria-labelledby="ov-title">
         <h2 id="ov-title" className="page-title pr-16">
           Event overview
         </h2>
@@ -84,7 +92,7 @@ export default function Overview() {
 
         <Gauge value={gauge.value} label={gauge.label} />
 
-        <div className="mt-auto pt-7 grid gap-3 sm:gap-4 grid-cols-2">
+        <div className="mt-7 grid gap-3 sm:gap-4 grid-cols-2">
           {tiles.map((t, i) => (
             <div key={i} className="rounded-[26px] bg-tile p-4 sm:p-[22px] min-w-0">
               <div className="flex flex-wrap items-start justify-between gap-2 text-[15px] sm:text-[16px] leading-tight text-brown-soft">
@@ -112,7 +120,7 @@ export default function Overview() {
 
         <Dial value={pct(sent, withPhone.length)} label="Invites sent" sub={`${sent} of ${withPhone.length}`} />
 
-        {event.status !== "ended" && <GateRequests requests={requests} onDecided={() => { reloadRequests?.(); reloadGuests?.(); }} />}
+        {event.status !== "ended" && !waiting && <GateRequests requests={requests} onDecided={decided} />}
 
         <SidesCard guests={guests} onTheDay={onTheDay} total={invited} />
       </div>
@@ -164,7 +172,7 @@ const GAUGE_PATHS = (() => {
 function Gauge({ value, label }) {
   const on = Math.round((Math.min(100, value) / 100) * SEGS);
   return (
-    <div className="relative mx-auto mt-6 max-w-[520px]" role="img" aria-label={`${value}% · ${label}`}>
+    <div className="relative mx-auto mt-6 w-full max-w-[520px] [container-type:inline-size]" role="img" aria-label={`${value}% · ${label}`}>
       <svg viewBox="0 0 520 290" className="w-full block overflow-visible">
         {GAUGE_PATHS.map((d, i) => {
           const c = i < on ? "#EEB12F" : "#EFEBE5";
@@ -172,32 +180,36 @@ function Gauge({ value, label }) {
         })}
       </svg>
       <div className="absolute inset-x-0 bottom-[4%] text-center">
-        <p className="bento-num text-[clamp(44px,5.6vw,76px)]">{value}%</p>
-        <p className="mt-1.5 text-[15px] sm:text-[18px] text-brown-soft">{label}</p>
+        <p className="bento-num text-[clamp(36px,15cqw,76px)]">{value}%</p>
+        <p className="mt-1 text-[clamp(14px,3.6cqw,18px)] text-brown-soft">{label}</p>
       </div>
     </div>
   );
 }
 
 function Actions({ event, unsent }) {
-  const pill = "h-[52px] px-[22px] rounded-full inline-flex items-center gap-2.5 text-[16px] whitespace-nowrap transition hover:-translate-y-px";
+  const pill = "h-[52px] px-[22px] rounded-full inline-flex items-center justify-center gap-2.5 text-[16px] whitespace-nowrap transition hover:-translate-y-px";
+  const live = event.status === "active";
   return (
-    <div className="md:col-span-2 flex flex-wrap items-center gap-2.5">
-      <Link to="guests" className={`${pill} bg-brown text-cream`}>
+    <div className="md:col-span-2 grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5">
+      <Link to="guests" className={`${pill} bg-brown text-cream ${unsent > 0 ? "" : "col-span-2"} max-[359px]:col-span-2`}>
         <Plus size={20} aria-hidden="true" /> Add guests
       </Link>
       {unsent > 0 && (
-        <Link to="guests?send=1" className={`${pill} bg-white`}>
-          <Send size={18} aria-hidden="true" /> Send {unsent} invite{unsent === 1 ? "" : "s"}
+        <Link to="guests?send=1" className={`${pill} bg-white max-[359px]:col-span-2`}>
+          <Send size={18} aria-hidden="true" /> Send {unsent}
+          <span className="max-[420px]:hidden -ml-1">invite{unsent === 1 ? "" : "s"}</span>
         </Link>
       )}
       <span className="hidden sm:block flex-1" />
-      <Link to="invitation" aria-label="Design invitation" title="Design invitation" className={`${pill} bg-white !px-0 w-[52px] justify-center`}>
+      <Link to="invitation" className={`${pill} bg-white ${live ? "" : "col-span-2"} sm:!px-0 sm:w-[52px]`} aria-label="Design invitation" title="Design invitation">
         <Mail size={20} aria-hidden="true" />
+        <span className="sm:hidden">Invitation</span>
       </Link>
-      {event.status === "active" && (
+      {live && (
         <a href={scannerUrl(event.id, event.scanner_key)} target="_blank" rel="noreferrer" className={`${pill} bg-ochre font-medium`}>
-          <ScanLine size={20} aria-hidden="true" /> Open gate scanner
+          <ScanLine size={20} aria-hidden="true" /> <span className="sm:hidden">Scanner</span>
+          <span className="max-sm:hidden">Open gate scanner</span>
         </a>
       )}
     </div>
@@ -354,7 +366,7 @@ function Dial({ value, label, sub }) {
 }
 
 /** Someone at the gate who isn't on the list; the usher asked from the scanner. */
-function GateRequests({ requests, onDecided }) {
+function GateRequests({ requests, onDecided, wide = false }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
   const req = requests[0];
@@ -370,9 +382,13 @@ function GateRequests({ requests, onDecided }) {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[36px] bg-ochre px-7 sm:px-8 pt-7 sm:pt-8 pb-7 flex flex-col justify-between min-h-[360px]" aria-labelledby="gr-title" aria-live="polite">
+    <section
+      className={`relative overflow-hidden rounded-[30px] sm:rounded-[36px] bg-ochre px-[22px] sm:px-8 pt-6 sm:pt-8 pb-[22px] sm:pb-7 flex flex-col justify-between ${wide ? "lg:flex-row lg:items-center lg:gap-8" : "min-h-[320px]"}`}
+      aria-labelledby="gr-title"
+      aria-live="polite"
+    >
       <KeyholeDisc disc="#2B1B12" hole="#EEB12F" className={`absolute -right-10 -top-10 w-[62%] max-w-[260px] opacity-[0.12] ${req ? "gl-bob" : ""}`} />
-      <div className="relative">
+      <div className={`relative ${wide ? "lg:w-[240px] lg:shrink-0 lg:[&>*]:max-w-none" : ""}`}>
         <h2 id="gr-title" className="section-title max-w-[60%]">Gate request{requests.length > 1 ? "s" : ""}</h2>
         <p className="mt-2 text-[15px] text-brown/70 max-w-[70%]">
           {req
@@ -383,9 +399,17 @@ function GateRequests({ requests, onDecided }) {
         </p>
       </div>
 
-      <div className="relative mt-10 rounded-[28px] bg-white p-[18px] grid gap-3">
+      <div className={`relative mt-6 ${wide ? "lg:mt-0 lg:flex-1" : ""} rounded-[28px] bg-white p-[14px] sm:p-[18px] grid gap-3 ${wide ? "md:grid-cols-[minmax(0,1fr)_minmax(0,340px)] md:items-center" : ""}`}>
         {req ? (
           <>
+            <div className="rounded-[20px] bg-tile px-[18px] py-4 min-w-0">
+              <p className="text-[20px] tracking-[-0.02em] break-words">{req.name}</p>
+              <p className="text-[15px] text-brown-soft">
+                Not on the list · admits {req.admits}
+                {req.note ? ` · “${req.note}”` : ""}
+              </p>
+              <p className="text-[13px] text-mute mt-1">Asked at {formatEventTime(req.created_at)}</p>
+            </div>
             <div className="flex gap-2.5">
               <button type="button" disabled={!!busy} onClick={() => decide(true)} className="flex-1 h-14 rounded-full bg-brown text-cream text-[16px] inline-flex items-center justify-center gap-2 disabled:opacity-60">
                 {busy === "yes" ? <ButtonSpinner /> : <Check size={20} strokeWidth={2.4} aria-hidden="true" />} Let in
@@ -393,14 +417,6 @@ function GateRequests({ requests, onDecided }) {
               <button type="button" disabled={!!busy} onClick={() => decide(false)} aria-label={`Decline ${req.name}`} className="w-14 h-14 rounded-full border-[1.5px] border-coral text-coral inline-flex items-center justify-center disabled:opacity-60">
                 {busy === "no" ? <ButtonSpinner /> : <X size={20} aria-hidden="true" />}
               </button>
-            </div>
-            <div className="rounded-[20px] bg-tile px-[18px] py-4">
-              <p className="text-[20px] tracking-[-0.02em] break-words">{req.name}</p>
-              <p className="text-[15px] text-brown-soft">
-                Not on the list · admits {req.admits}
-                {req.note ? ` · “${req.note}”` : ""}
-              </p>
-              <p className="text-[13px] text-mute mt-1">Asked at {formatEventTime(req.created_at)}</p>
             </div>
             {error && <p role="alert" className="text-sm font-medium text-[#9A3324]">{error}</p>}
           </>

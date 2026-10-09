@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import HeroStage, { Sunburst } from "../components/HeroStage.jsx";
+import SiteHeader from "../components/SiteHeader.jsx";
 import YorubaPhrase from "../components/YorubaPhrase.jsx";
 import {
   Armchair,
-  Menu,
   Briefcase,
   ChartColumn,
   Check,
@@ -28,7 +28,6 @@ import {
   KeyholeDisc,
   Loader,
   SunMark,
-  Wordmark,
 } from "../components/Brand.jsx";
 import { useAuth } from "../lib/auth.jsx";
 import { formatNaira } from "../lib/format.js";
@@ -115,7 +114,6 @@ export default function Landing() {
   const { session } = useAuth();
   const { tiers, settings } = usePricing();
   const startHref = session ? "/app/events/new" : "/login?next=/app/events/new";
-  const [menu, setMenu] = useState(false);
 
   // Intro: roll-call loader once per visit, then the hero animates in and the pills drop.
   const [intro, setIntro] = useState(() => {
@@ -157,28 +155,7 @@ export default function Landing() {
     style: { transitionDelay: heroIn ? `${delay}ms` : "0ms" },
   });
 
-  // Slim bar with the main button once you scroll past the hero.
-  const [pastHero, setPastHero] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setPastHero(window.scrollY > window.innerHeight * 0.9);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   const fromPrice = tiers.length ? formatNaira(Math.min(...tiers.map((t) => t.price_kobo))) : null;
-  const navLinks = [
-    ["How it works", "#how"],
-    ["Features", "#features"],
-    ["Pricing", "#pricing"],
-    ["Questions", "#faq"],
-  ];
-  const accountLink = (cls) => (
-    <Link to={session ? "/app" : "/login"} className={cls}>
-      {session ? "My events" : "Sign in"}
-    </Link>
-  );
-
   return (
     <div className="overflow-x-hidden">
       {intro !== "done" && (
@@ -187,60 +164,7 @@ export default function Landing() {
         </div>
       )}
 
-      {/* Sticky bar after the hero */}
-      <div
-        className={`fixed z-40 inset-x-0 top-0 transition duration-300 ${pastHero && !menu ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0 pointer-events-none"}`}
-        aria-hidden={!pastHero}
-      >
-        <div className="mx-auto max-w-6xl px-3 sm:px-5 pt-3">
-          <div className="flex items-center gap-2 rounded-full bg-brown/95 backdrop-blur text-cream pl-5 pr-1.5 py-1.5 shadow-[0_14px_40px_rgba(43,27,18,0.25)]">
-            <Link to="/" aria-label="Guestlok home" className="text-[22px] min-w-0" tabIndex={pastHero ? 0 : -1}>
-              <Wordmark disc="#EEB12F" hole="#2B1B12" />
-            </Link>
-            <nav className="hidden md:flex flex-1 justify-center gap-6 text-[14px]">
-              {navLinks.map(([label, href]) => (
-                <a key={href} href={href} tabIndex={pastHero ? 0 : -1} className="hover:text-ochre">{label}</a>
-              ))}
-            </nav>
-            <span className="flex-1 md:hidden" />
-            <Link to={session ? "/app" : "/login"} tabIndex={pastHero ? 0 : -1} className="max-[359px]:hidden px-2 sm:px-3 text-[14px] whitespace-nowrap hover:text-ochre">
-              {session ? "My events" : "Sign in"}
-            </Link>
-            <Link to={startHref} tabIndex={pastHero ? 0 : -1} className="btn-ochre h-10 px-4 text-[14px] whitespace-nowrap shrink-0">
-              Plan your event
-            </Link>
-            <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" tabIndex={pastHero ? 0 : -1} className="md:hidden w-10 h-10 shrink-0 rounded-full bg-white/10 inline-flex items-center justify-center">
-              <Menu size={18} aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {menu && (
-        <div className="gl-fade fixed inset-0 z-50 bg-brown text-cream md:hidden flex flex-col px-5 pb-8" role="dialog" aria-modal="true" aria-label="Menu">
-          <div className="flex items-center justify-between py-4">
-            <Link to="/" onClick={() => setMenu(false)} aria-label="Guestlok home" className="text-[26px]">
-              <Wordmark disc="#EEB12F" hole="#2B1B12" />
-            </Link>
-            <button type="button" onClick={() => setMenu(false)} aria-label="Close menu" autoFocus className="w-11 h-11 rounded-full border-[1.5px] border-cream/40 inline-flex items-center justify-center">
-              <X size={20} aria-hidden="true" />
-            </button>
-          </div>
-          <nav className="mt-6 flex flex-col">
-            {navLinks.map(([label, href]) => (
-              <a key={href} href={href} onClick={() => setMenu(false)} className="py-4 border-b border-white/10 text-[34px] tracking-[-0.04em] leading-none">
-                {label}
-              </a>
-            ))}
-          </nav>
-          <div className="mt-auto flex flex-col gap-3">
-            <Link to={startHref} onClick={() => setMenu(false)} className="btn-ochre btn-lg">
-              Plan your event <ArrowRight />
-            </Link>
-            {accountLink("btn btn-lg border-[1.5px] border-cream/40 text-cream")}
-          </div>
-        </div>
-      )}
+      <SiteHeader session={session} startHref={startHref} />
 
       {/* ---------------- HERO ---------------- */}
       <section className="relative bg-brown text-cream overflow-hidden pb-14 sm:pb-16">
@@ -254,25 +178,10 @@ export default function Landing() {
         </div>
 
         <div className="relative mx-auto max-w-6xl px-5">
-          <nav className="flex items-center justify-between gap-3 py-4 sm:py-5">
-            <Link to="/" aria-label="Guestlok home" className="text-[26px] sm:text-[30px] shrink-0">
-              <Wordmark disc="#EEB12F" hole="#2B1B12" />
-            </Link>
-            <div className="flex items-center gap-2 sm:gap-7 text-[15px] font-medium">
-              {navLinks.slice(0, 3).map(([label, href]) => (
-                <a key={href} href={href} className="hidden md:inline hover:text-ochre">{label}</a>
-              ))}
-              {accountLink("sm:hidden h-11 px-4 rounded-full border-[1.5px] border-cream/40 inline-flex items-center text-[14px] whitespace-nowrap")}
-              {accountLink("hidden sm:inline hover:text-ochre")}
-              <Link to={startHref} className="max-sm:hidden btn-ochre h-11 px-5 text-[15px]">Plan your event</Link>
-              <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" aria-expanded={menu} className="md:hidden w-11 h-11 rounded-full border-[1.5px] border-cream/40 inline-flex items-center justify-center">
-                <Menu size={20} aria-hidden="true" />
-              </button>
-            </div>
-          </nav>
+          <div className="h-16 sm:h-20" aria-hidden="true" />
 
           <div className="flex flex-col items-center text-center">
-            <span className={`mt-8 sm:mt-14 inline-flex items-center gap-2 border-[1.5px] border-cream/40 rounded-full px-3.5 py-1.5 text-[13px] sm:text-[14px] font-medium ${rise(0).className}`} style={rise(0).style}>
+            <span className={`mt-6 sm:mt-8 inline-flex items-center gap-2 border-[1.5px] border-cream/40 rounded-full px-3.5 py-1.5 text-[13px] sm:text-[14px] font-medium ${rise(0).className}`} style={rise(0).style}>
               <span className="w-2 h-2 rounded-full bg-coral" aria-hidden="true" /> Guest-list control for Nigerian parties
             </span>
 

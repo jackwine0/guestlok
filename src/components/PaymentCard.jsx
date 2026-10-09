@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { friendlyError, functionError } from "../lib/errors.js";
 import { useFeedback } from "../lib/feedback.js";
-import { formatEventDate, formatEventTime, formatNaira } from "../lib/format.js";
+import { formatEventTime, formatNaira, formatShortDate } from "../lib/format.js";
 import { deleteConfirmOptions, deleteEvent } from "../lib/deleteEvent.js";
 import { unlocks } from "../lib/plans.js";
 import { planPriceKobo, usePricing } from "../lib/pricing.js";
@@ -100,8 +100,8 @@ export default function PaymentCard({ event, onEventChange, notice, showSteps = 
               <p className="text-[22px] tracking-[-0.02em] break-words">{event.name}</p>
               {event.host_names && <p className="text-brown-soft">Hosted by {event.host_names}</p>}
               <div className="mt-3 flex flex-wrap gap-2 text-sm">
-                <span className="h-9 px-3.5 rounded-full bg-white inline-flex items-center gap-2"><CalendarDays size={15} aria-hidden="true" />{formatEventDate(event.starts_at)}</span>
-                <span className="h-9 px-3.5 rounded-full bg-white inline-flex items-center gap-2"><Clock size={15} aria-hidden="true" />{formatEventTime(event.starts_at)}</span>
+                <span className="h-9 px-3.5 rounded-full bg-white inline-flex items-center gap-2 whitespace-nowrap"><CalendarDays size={15} aria-hidden="true" />{formatShortDate(event.starts_at)}</span>
+                <span className="h-9 px-3.5 rounded-full bg-white inline-flex items-center gap-2 whitespace-nowrap"><Clock size={15} aria-hidden="true" />{formatEventTime(event.starts_at)}</span>
                 <span className="h-9 px-3.5 rounded-full bg-white inline-flex items-center gap-2 max-w-full"><MapPin size={15} aria-hidden="true" className="shrink-0" /><span className="truncate">{event.venue}</span></span>
               </div>
             </div>

@@ -76,7 +76,7 @@ export default function Dashboard() {
             <div className="grid gap-[18px] grid-cols-2 grid-rows-[auto_minmax(0,1fr)]">
               <Stat label={<>Events<br />hosted</>} value={events.length} chip={upcoming.length ? `${upcoming.length} upcoming` : null} />
               <Stat label={<>People<br />invited</>} value={invitedAll} />
-              <div className="relative overflow-hidden col-span-2 rounded-[36px] bg-brown text-cream px-7 py-6 flex flex-wrap items-end justify-between gap-4">
+              <div className="relative overflow-hidden col-span-2 rounded-[30px] sm:rounded-[36px] bg-brown text-cream px-[22px] sm:px-8 py-6 flex flex-wrap items-end justify-between gap-4">
                 <KeyholeDisc disc="#EEB12F" hole="#2B1B12" className="absolute -right-8 -top-8 w-40 h-40 opacity-15" />
                 <div className="relative">
                   <p className="text-white/70 text-[16px]">Guests who came</p>
@@ -106,7 +106,7 @@ function NextUp({ event, now }) {
 
   return (
     <Link to={`/app/events/${event.id}`} className="bento group flex flex-col gap-6 hover:-translate-y-0.5 transition">
-      <span className="absolute top-6 right-6 w-14 h-14 rounded-full border-[1.5px] border-tile inline-flex items-center justify-center group-hover:bg-ochre group-hover:border-ochre transition">
+      <span className="absolute top-5 right-5 sm:top-6 sm:right-6 w-12 h-12 sm:w-14 sm:h-14 rounded-full border-[1.5px] border-tile inline-flex items-center justify-center group-hover:bg-ochre group-hover:border-ochre transition">
         <ArrowUpRight size={22} aria-hidden="true" />
       </span>
       <div className="flex items-center gap-2 pr-16">
@@ -115,8 +115,10 @@ function NextUp({ event, now }) {
       </div>
       <h2 className="text-[34px] sm:text-[48px] font-normal tracking-[-0.04em] leading-[1.02] pr-12 break-words">{event.name}</h2>
       <div className="flex flex-wrap gap-2 text-[15px]">
-        <span className="h-10 px-4 rounded-full bg-tile inline-flex items-center gap-2">
-          <CalendarDays size={16} aria-hidden="true" /> {formatEventDate(event.starts_at)} · {formatEventTime(event.starts_at)}
+        <span className="h-10 px-4 rounded-full bg-tile inline-flex items-center gap-2 whitespace-nowrap">
+          <CalendarDays size={16} aria-hidden="true" />
+          <span className="sm:hidden">{formatShortDate(event.starts_at)}</span>
+          <span className="max-sm:hidden">{formatEventDate(event.starts_at)}</span> · {formatEventTime(event.starts_at)}
         </span>
         <span className="h-10 px-4 rounded-full bg-tile inline-flex items-center gap-2 max-w-full">
           <MapPin size={16} aria-hidden="true" className="shrink-0" /> <span className="truncate">{event.venue}</span>
@@ -166,12 +168,12 @@ function NothingNext() {
 
 function Stat({ label, value, chip }) {
   return (
-    <div className="rounded-[36px] bg-white px-6 py-6">
-      <div className="flex items-start justify-between gap-2 text-[16px] leading-tight text-brown-soft">
+    <div className="min-w-0 rounded-[30px] sm:rounded-[36px] bg-white px-5 sm:px-6 py-5 sm:py-6">
+      <div className="flex flex-wrap items-start justify-between gap-2 text-[15px] sm:text-[16px] leading-tight text-brown-soft">
         <span>{label}</span>
-        {chip && <span className="h-[30px] px-3 rounded-full bg-ochre text-brown text-sm font-medium inline-flex items-center whitespace-nowrap">{chip}</span>}
+        {chip && <span className="h-[28px] sm:h-[30px] px-3 rounded-full bg-ochre text-brown text-sm font-medium inline-flex items-center whitespace-nowrap">{chip}</span>}
       </div>
-      <p className="bento-num text-[clamp(44px,4.2vw,60px)] mt-6">{value}</p>
+      <p className="bento-num text-[clamp(40px,4.2vw,60px)] mt-5 sm:mt-6">{value}</p>
     </div>
   );
 }
@@ -185,7 +187,7 @@ function EventGrid({ title, events }) {
           const { invited, arrived } = totals(e);
           const share = e.status === "ended" ? (invited ? arrived / invited : 0) : e.headcount ? invited / e.headcount : 0;
           return (
-            <Link key={e.id} to={`/app/events/${e.id}`} className="group rounded-[32px] bg-white p-6 flex flex-col gap-4 hover:-translate-y-0.5 transition">
+            <Link key={e.id} to={`/app/events/${e.id}`} className="group rounded-[30px] sm:rounded-[32px] bg-white p-[22px] sm:p-6 flex flex-col gap-4 hover:-translate-y-0.5 transition">
               <div className="flex items-center justify-between gap-2">
                 <StatusChip status={e.status} />
                 <span className="w-10 h-10 rounded-full border-[1.5px] border-tile inline-flex items-center justify-center group-hover:bg-ochre group-hover:border-ochre transition">
@@ -196,6 +198,7 @@ function EventGrid({ title, events }) {
               <p className="text-[15px] text-brown-soft truncate">
                 {formatShortDate(e.starts_at)} · {e.venue}
               </p>
+              {e.status === "draft" && <p className="mt-auto text-[15px] font-medium text-gold-ink">Finish checkout to unlock guests →</p>}
               {e.status !== "draft" && (
                 <div className="mt-auto">
                   <div className="flex justify-between text-sm text-brown-soft">

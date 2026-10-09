@@ -13,9 +13,9 @@ export default function FeedbackProvider({ children }) {
   const dismiss = useCallback((id) => setToasts((list) => list.filter((t) => t.id !== id)), []);
 
   const toast = useCallback(
-    (message, { tone = "success", duration } = {}) => {
+    (message, { tone = "success", duration, action } = {}) => {
       const id = ++idRef.current;
-      setToasts((list) => [...list.slice(-2), { id, message, tone }]);
+      setToasts((list) => [...list.slice(-2), { id, message, tone, action }]);
       setTimeout(() => dismiss(id), duration ?? (tone === "error" ? 6000 : 3200));
     },
     [dismiss],
@@ -79,6 +79,18 @@ function Toast({ toast, onClose }) {
         <Icon size={17} strokeWidth={2.4} aria-hidden="true" />
       </span>
       <span className="flex-1 min-w-0 text-[15px] leading-snug py-1">{toast.message}</span>
+      {toast.action && (
+        <button
+          type="button"
+          onClick={() => {
+            toast.action.onClick();
+            onClose();
+          }}
+          className="h-9 px-4 shrink-0 rounded-full bg-ochre text-brown text-sm font-medium"
+        >
+          {toast.action.label}
+        </button>
+      )}
       <button type="button" onClick={onClose} aria-label="Dismiss" className="w-8 h-8 shrink-0 rounded-full inline-flex items-center justify-center text-sand hover:bg-white/10">
         <X size={15} aria-hidden="true" />
       </button>

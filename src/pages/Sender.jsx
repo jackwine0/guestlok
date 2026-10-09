@@ -20,7 +20,7 @@ export default function Sender() {
   useTitle(data?.event ? `Send invites · ${data.event.name}` : "Send invites");
 
   useEffect(() => {
-    supabase.rpc("sender_queue", { p_token: token }).then(({ data, error }) => setData(error ? null : data ?? null));
+    supabase.rpc("sender_queue", { p_token: token }).then(({ data, error }) => setData(error || !data?.event ? null : data));
   }, [token]);
 
   const guests = useMemo(() => data?.guests ?? [], [data]);

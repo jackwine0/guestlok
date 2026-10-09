@@ -6,6 +6,9 @@
   html {
     -webkit-text-size-adjust: 100%;
   }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
   body {
     @apply bg-paper text-brown font-sans antialiased;
   }
@@ -108,6 +111,8 @@
   justify-content: center;
   overflow: hidden;
 }
+/* The library's own "Scanner paused" strip; we show our own paused screen. */
+.gl-reader > div:last-child { display: none !important; }
 .gl-reader video {
   width: 100% !important;
   height: auto !important;
@@ -204,54 +209,10 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 @keyframes gl-countdown { to { width: 0%; } }
 @media (prefers-reduced-motion: reduce) { .gl-countdown { animation: none; } }
 
-/* Tab switch (View Transitions): the dark pill glides under the labels, the section fades up. */
-[data-gl-vt] .gl-vt-tab { view-transition-name: gl-tab; }
-[data-gl-vt] .gl-vt-ink-0 { view-transition-name: gl-ink-0; }
-[data-gl-vt] .gl-vt-ink-1 { view-transition-name: gl-ink-1; }
-[data-gl-vt] .gl-vt-ink-2 { view-transition-name: gl-ink-2; }
-[data-gl-vt] .gl-vt-ink-3 { view-transition-name: gl-ink-3; }
-[data-gl-vt] .gl-vt-ink-4 { view-transition-name: gl-ink-4; }
-[data-gl-vt="tab-page"] .gl-vt-page { view-transition-name: gl-page; }
-::view-transition-old(root),
-::view-transition-new(root) { animation: none; }
-::view-transition-group(gl-tab) { z-index: 1; animation-duration: .42s; animation-timing-function: cubic-bezier(.3, 1.3, .45, 1); }
-::view-transition-old(gl-tab),
-::view-transition-new(gl-tab) { width: 100%; height: 100%; animation: none; }
-::view-transition-old(gl-tab) { opacity: 0; }
-::view-transition-group(gl-ink-0),
-::view-transition-group(gl-ink-1),
-::view-transition-group(gl-ink-2),
-::view-transition-group(gl-ink-3),
-::view-transition-group(gl-ink-4) { z-index: 2; animation-duration: .42s; animation-timing-function: cubic-bezier(.3, 1.3, .45, 1); }
-::view-transition-old(gl-ink-0),
-::view-transition-old(gl-ink-1),
-::view-transition-old(gl-ink-2),
-::view-transition-old(gl-ink-3),
-::view-transition-old(gl-ink-4),
-::view-transition-new(gl-ink-0),
-::view-transition-new(gl-ink-1),
-::view-transition-new(gl-ink-2),
-::view-transition-new(gl-ink-3),
-::view-transition-new(gl-ink-4) { width: auto; height: 100%; inset-inline: 0; margin-inline: auto; mix-blend-mode: normal; }
-::view-transition-old(gl-ink-0),
-::view-transition-old(gl-ink-1),
-::view-transition-old(gl-ink-2),
-::view-transition-old(gl-ink-3),
-::view-transition-old(gl-ink-4) { animation: gl-vt-out .08s linear both; }
-::view-transition-new(gl-ink-0),
-::view-transition-new(gl-ink-1),
-::view-transition-new(gl-ink-2),
-::view-transition-new(gl-ink-3),
-::view-transition-new(gl-ink-4) { animation: gl-vt-fade-in .22s ease-out both; }
-@keyframes gl-vt-fade-in { from { opacity: 0; } }
-::view-transition-group(gl-page) { animation: none; }
-::view-transition-old(gl-page) { animation: gl-vt-out .14s ease-out both; }
-::view-transition-new(gl-page) { animation: gl-vt-in .32s cubic-bezier(.2, .8, .2, 1) .05s both; }
-@keyframes gl-vt-out { to { opacity: 0; } }
-@keyframes gl-vt-in { from { opacity: 0; transform: translateY(12px); } }
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
-}
+/* Tab switch: the new section rises in (the sliding pill lives in EventDetail). */
+.gl-tab-in { animation: gl-tab-in .34s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes gl-tab-in { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .gl-tab-in { animation: none; } }
 
 /* Scrolls, but without a visible scrollbar (modals, sheets). */
 .gl-noscrollbar { scrollbar-width: none; -ms-overflow-style: none; }
