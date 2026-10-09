@@ -1,0 +1,258 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-paper text-brown font-sans antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid theme('colors.brown.DEFAULT');
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Buttons: every button is a pill. Default height 48px; .btn-lg is 52px. */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 h-12 px-6 rounded-full font-medium text-[15px] transition whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-lg {
+    @apply h-[52px] px-6 text-[16px];
+  }
+  .btn-dark {
+    @apply btn bg-brown text-cream hover:bg-black;
+  }
+  .btn-ochre {
+    @apply btn bg-ochre text-brown hover:brightness-95;
+  }
+  .btn-light {
+    @apply btn bg-white text-brown hover:-translate-y-px;
+  }
+  .btn-tile {
+    @apply btn bg-tile text-brown hover:bg-sand;
+  }
+  .btn-danger {
+    @apply btn bg-coral text-brown hover:brightness-95;
+  }
+  .btn-outline {
+    @apply btn border-[1.5px] border-current hover:bg-brown hover:text-cream hover:border-brown;
+  }
+  .icon-btn {
+    @apply w-10 h-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center transition;
+  }
+  /* Legacy alias: every white card in the app is a bento card. */
+  .card {
+    @apply bento;
+  }
+  /* Type */
+  .page-title {
+    @apply text-[34px] sm:text-[44px] font-normal tracking-[-0.035em] leading-[1.05];
+  }
+  .page-sub {
+    @apply mt-1.5 text-brown-soft text-[16px] max-w-2xl;
+  }
+  .hero-title {
+    @apply text-[30px] sm:text-[40px] font-normal tracking-[-0.035em] leading-[1.05];
+  }
+  /* Landing page */
+  .land-h2 {
+    @apply text-[clamp(38px,5vw,64px)] font-medium tracking-[-0.05em] leading-[0.98];
+  }
+  .land-sub {
+    @apply text-[17px] sm:text-lg leading-relaxed text-brown-soft max-w-xl;
+  }
+  .section-title {
+    @apply text-[22px] font-normal tracking-[-0.03em] leading-tight;
+  }
+  /* Small status pill */
+  .chip {
+    @apply inline-flex items-center whitespace-nowrap text-xs font-medium px-2.5 py-1 rounded-full;
+  }
+  /* Messages */
+  .alert-error {
+    @apply rounded-2xl bg-coral/15 text-[#9A3324] px-4 py-3 text-[15px] font-medium;
+  }
+  .alert-info {
+    @apply rounded-2xl bg-cream text-brown px-4 py-3 text-[15px];
+  }
+  .field {
+    @apply w-full h-12 rounded-2xl border border-sand bg-white px-4 text-[16px] text-brown placeholder:text-brown-soft/60 outline-none focus:border-brown;
+  }
+  .label {
+    @apply block text-sm font-medium mb-1.5;
+  }
+  /* Dashboard bento card + big light numbers */
+  .bento {
+    @apply relative min-w-0 bg-white rounded-[30px] sm:rounded-[36px] px-[22px] py-6 sm:px-8 sm:py-[30px];
+  }
+  .bento-num {
+    @apply font-normal tracking-[-0.05em] leading-[0.95] tabular-nums;
+  }
+  .eyebrow {
+    @apply text-sm font-medium tracking-[0.08em] uppercase text-gold-ink;
+  }
+}
+
+/* html5-qrcode renders its own <video>. The decoder reads the video at its
+   natural shape, so we keep that and scale it up (transform) to fill the frame. */
+.gl-reader {
+  border: 0 !important;
+  position: absolute !important; /* the library sets position: relative inline */
+  inset: 0;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.gl-reader video {
+  width: 100% !important;
+  height: auto !important;
+  transform-origin: center;
+}
+
+/* Roll-call loader */
+.gl-ray { opacity: .18; animation: gl-ray 2.6s ease-in-out infinite; }
+@keyframes gl-ray { 0% { opacity: .18 } 6% { opacity: 1 } 72% { opacity: 1 } 86% { opacity: .18 } 100% { opacity: .18 } }
+.gl-disc { transform-origin: 50px 50px; animation: gl-pop 2.6s ease-in-out infinite; }
+@keyframes gl-pop { 0%, 60% { transform: scale(1) } 66% { transform: scale(1.08) } 72%, 100% { transform: scale(1) } }
+.gl-key { transform-origin: 50px 50px; animation: gl-turn 2.6s cubic-bezier(.6,0,.3,1) infinite; }
+@keyframes gl-turn { 0%, 58% { transform: rotate(0) } 68%, 84% { transform: rotate(90deg) } 94%, 100% { transform: rotate(0) } }
+.gl-dot { animation: gl-dot 1.2s ease-in-out infinite; }
+.gl-dot:nth-child(2) { animation-delay: .2s; }
+.gl-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes gl-dot { 0%, 100% { opacity: .25 } 40% { opacity: 1 } }
+.gl-scan { animation: gl-scan 1.6s ease-in-out infinite; }
+@keyframes gl-scan { 0% { top: 0 } 50% { top: calc(100% - 4px) } 100% { top: 0 } }
+
+@media (prefers-reduced-motion: reduce) {
+  .gl-ray, .gl-disc, .gl-key, .gl-dot, .gl-scan { animation: none; }
+  .gl-ray { opacity: 1; }
+}
+
+/* Landing hero: check-in ticker + turning keyhole */
+.gl-marquee { animation: gl-marquee 42s linear infinite; }
+.gl-marquee-rev { animation-direction: reverse; animation-duration: 48s; }
+@keyframes gl-marquee { to { transform: translateX(-50%); } }
+.gl-turnkey { animation: gl-turnkey 4s cubic-bezier(.6,0,.2,1) infinite; transform-origin: 50% 50%; }
+@keyframes gl-turnkey { 0%, 70% { rotate: 0deg; } 80%, 92% { rotate: 90deg; } 100% { rotate: 0deg; } }
+@media (prefers-reduced-motion: reduce) {
+  .gl-marquee, .gl-turnkey { animation: none; }
+}
+
+/* Landing hero (dark stage): sunburst, floating invite, bobbing stickers */
+.gl-spin { animation: gl-spin 90s linear infinite; }
+@keyframes gl-spin { to { rotate: 360deg; } }
+.gl-float { transform: rotateX(8deg) rotateY(-14deg) rotateZ(-4deg); animation: gl-float 6s ease-in-out infinite; }
+@keyframes gl-float { 50% { transform: rotateX(4deg) rotateY(-6deg) rotateZ(-2deg) translateY(-14px); } }
+.gl-bob { animation: gl-bob 5s ease-in-out infinite; }
+@keyframes gl-bob { 50% { translate: 0 -10px; } }
+@media (prefers-reduced-motion: reduce) {
+  .gl-spin, .gl-float, .gl-bob { animation: none; }
+}
+
+/* Dropdowns: one custom chevron, vertically centred, same on every browser */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232B1B12' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 1rem 1rem;
+  padding-right: 2.6rem !important;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+select::-ms-expand { display: none; }
+
+/* Date / time pickers: pin the native icon to the right edge, centred */
+input[type="date"], input[type="time"] { position: relative; -webkit-appearance: none; appearance: none; padding-right: 2.75rem; }
+input[type="date"]::-webkit-date-and-time-value, input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator {
+  position: absolute; right: 0.9rem; top: 50%; transform: translateY(-50%); margin: 0; opacity: .75; cursor: pointer;
+}
+
+/* Field that failed validation */
+[data-gl-invalid] { border-color: #E8604C !important; box-shadow: 0 0 0 4px rgba(232, 96, 76, .18) !important; }
+
+/* Modal + toast motion */
+.gl-fade { animation: gl-fade .18s ease-out; }
+@keyframes gl-fade { from { opacity: 0; } }
+.gl-rise { animation: gl-rise .28s cubic-bezier(.2,.9,.3,1.1); }
+@keyframes gl-rise { from { opacity: 0; transform: translateY(24px) scale(.98); } }
+.gl-toast { animation: gl-toast .32s cubic-bezier(.2,.9,.3,1.2); }
+@keyframes gl-toast { from { opacity: 0; transform: translateY(16px) scale(.96); } }
+.gl-hint { animation: gl-hint .2s ease-out; }
+@keyframes gl-hint { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .gl-fade, .gl-rise, .gl-toast, .gl-hint { animation: none; }
+}
+
+/* Range slider (cover zoom) */
+.gl-range { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; background: #F4F1EC; cursor: pointer; }
+.gl-range::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #2B1B12; border: 4px solid #EEB12F; }
+.gl-range-dark { background: rgba(255,255,255,.14); height: 8px; }
+.gl-range-dark::-webkit-slider-thumb { width: 28px; height: 28px; background: #EEB12F; border: 6px solid #2B1B12; box-shadow: 0 0 0 2px #EEB12F; }
+.gl-range-dark::-moz-range-thumb { width: 18px; height: 18px; background: #EEB12F; border: 6px solid #2B1B12; }
+.gl-range::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #2B1B12; border: 4px solid #EEB12F; }
+
+/* Scanner result: shrinking bar that shows when the screen will close */
+.gl-countdown { width: 100%; animation: gl-countdown linear forwards; }
+@keyframes gl-countdown { to { width: 0%; } }
+@media (prefers-reduced-motion: reduce) { .gl-countdown { animation: none; } }
+
+/* Tab switch (View Transitions): the dark pill glides under the labels, the section fades up. */
+[data-gl-vt] .gl-vt-tab { view-transition-name: gl-tab; }
+[data-gl-vt] .gl-vt-ink-0 { view-transition-name: gl-ink-0; }
+[data-gl-vt] .gl-vt-ink-1 { view-transition-name: gl-ink-1; }
+[data-gl-vt] .gl-vt-ink-2 { view-transition-name: gl-ink-2; }
+[data-gl-vt] .gl-vt-ink-3 { view-transition-name: gl-ink-3; }
+[data-gl-vt] .gl-vt-ink-4 { view-transition-name: gl-ink-4; }
+[data-gl-vt="tab-page"] .gl-vt-page { view-transition-name: gl-page; }
+::view-transition-old(root),
+::view-transition-new(root) { animation: none; }
+::view-transition-group(gl-tab) { z-index: 1; animation-duration: .42s; animation-timing-function: cubic-bezier(.3, 1.3, .45, 1); }
+::view-transition-old(gl-tab),
+::view-transition-new(gl-tab) { width: 100%; height: 100%; animation: none; }
+::view-transition-old(gl-tab) { opacity: 0; }
+::view-transition-group(gl-ink-0),
+::view-transition-group(gl-ink-1),
+::view-transition-group(gl-ink-2),
+::view-transition-group(gl-ink-3),
+::view-transition-group(gl-ink-4) { z-index: 2; animation-duration: .42s; animation-timing-function: cubic-bezier(.3, 1.3, .45, 1); }
+::view-transition-old(gl-ink-0),
+::view-transition-old(gl-ink-1),
+::view-transition-old(gl-ink-2),
+::view-transition-old(gl-ink-3),
+::view-transition-old(gl-ink-4),
+::view-transition-new(gl-ink-0),
+::view-transition-new(gl-ink-1),
+::view-transition-new(gl-ink-2),
+::view-transition-new(gl-ink-3),
+::view-transition-new(gl-ink-4) { width: auto; height: 100%; inset-inline: 0; margin-inline: auto; mix-blend-mode: normal; }
+::view-transition-old(gl-ink-0),
+::view-transition-old(gl-ink-1),
+::view-transition-old(gl-ink-2),
+::view-transition-old(gl-ink-3),
+::view-transition-old(gl-ink-4) { animation: gl-vt-out .08s linear both; }
+::view-transition-new(gl-ink-0),
+::view-transition-new(gl-ink-1),
+::view-transition-new(gl-ink-2),
+::view-transition-new(gl-ink-3),
+::view-transition-new(gl-ink-4) { animation: gl-vt-fade-in .22s ease-out both; }
+@keyframes gl-vt-fade-in { from { opacity: 0; } }
+::view-transition-group(gl-page) { animation: none; }
+::view-transition-old(gl-page) { animation: gl-vt-out .14s ease-out both; }
+::view-transition-new(gl-page) { animation: gl-vt-in .32s cubic-bezier(.2, .8, .2, 1) .05s both; }
+@keyframes gl-vt-out { to { opacity: 0; } }
+@keyframes gl-vt-in { from { opacity: 0; transform: translateY(12px); } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+}
+
+/* Scrolls, but without a visible scrollbar (modals, sheets). */
+.gl-noscrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.gl-noscrollbar::-webkit-scrollbar { display: none; }

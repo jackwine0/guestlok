@@ -1,0 +1,20 @@
+# Minimal Supabase CLI config for Guestlok.
+# Run `supabase init` if your CLI asks for a fuller config — keep these function settings.
+
+project_id = "guestlok"
+
+[functions.paystack-init]
+verify_jwt = true
+
+[functions.paystack-verify]
+verify_jwt = true
+
+[functions.paystack-webhook]
+verify_jwt = false
+
+[functions.whatsapp-send]
+verify_jwt = true
+
+# Meta calls this; it checks Meta's signature itself.
+[functions.whatsapp-webhook]
+verify_jwt = false
