@@ -1,4 +1,4 @@
-import { toPng } from "html-to-image";
+import { toJpeg, toPng } from "html-to-image";
 import { createRoot } from "react-dom/client";
 import TicketCard from "../components/TicketCard.jsx";
 
@@ -27,7 +27,16 @@ async function waitForImages(node) {
 }
 
 /** Render a ticket off-screen and return it as a PNG data URL plus its size. */
-export async function renderTicketPng(invite, { pixelRatio = 2 } = {}) {
+export function renderTicketPng(invite, { pixelRatio = 2 } = {}) {
+  return renderTicket(invite, (node) => toPng(node, { pixelRatio, cacheBust: true }));
+}
+
+/** Smaller JPEG version (for WhatsApp's link preview, which wants a light image). */
+export function renderTicketJpeg(invite, { pixelRatio = 1.5, quality = 0.86 } = {}) {
+  return renderTicket(invite, (node) => toJpeg(node, { pixelRatio, quality, cacheBust: true, backgroundColor: "#ffffff" }));
+}
+
+async function renderTicket(invite, encode) {
   const host = document.createElement("div");
   host.setAttribute("aria-hidden", "true");
   host.style.cssText = "position:fixed;left:-10000px;top:0;pointer-events:none;";
@@ -50,7 +59,7 @@ export async function renderTicketPng(invite, { pixelRatio = 2 } = {}) {
       );
     });
     await waitForImages(node);
-    const dataUrl = await toPng(node, { pixelRatio, cacheBust: true });
+    const dataUrl = await encode(node);
     return { dataUrl, width: node.offsetWidth, height: node.offsetHeight };
   } finally {
     root.unmount();

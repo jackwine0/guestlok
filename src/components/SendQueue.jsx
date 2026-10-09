@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { whatsappLink } from "../lib/format.js";
 import { markInviteSent, renderMessage } from "../lib/invite.js";
 import { canShareFiles } from "../lib/ticketExport.jsx";
+import { openWhatsApp, prepareTicketPreview } from "../lib/whatsappTicket.js";
 import Modal from "./Modal.jsx";
 import TicketButton from "./TicketButton.jsx";
 
@@ -27,6 +28,12 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
   const share = canShareFiles();
 
   useEffect(() => setIndex(0), [includeSent, side]);
+
+  // Get this guest's and the next guest's ticket image ready while the host reads.
+  useEffect(() => {
+    if (queue[index]) prepareTicketPreview(event, queue[index]);
+    if (queue[index + 1]) prepareTicketPreview(event, queue[index + 1]);
+  }, [queue, index, event]);
 
   const guest = queue[index];
   const finished = index >= queue.length;
@@ -70,7 +77,17 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
             </div>
 
             <div className="flex flex-col gap-2.5">
-              <a href={whatsappLink(guest.phone, message)} target="_blank" rel="noreferrer" onClick={sent} className="btn-ochre btn-lg">
+              <a
+                href={whatsappLink(guest.phone, message)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => {
+                  e.preventDefault();
+                  openWhatsApp(e.currentTarget.href, prepareTicketPreview(event, guest));
+                  sent();
+                }}
+                className="btn-ochre btn-lg"
+              >
                 <MessageCircle size={20} aria-hidden="true" /> Open chat with {guest.name.split(" ")[0]}
               </a>
               {share && (

@@ -18,3 +18,7 @@ verify_jwt = true
 # Meta calls this; it checks Meta's signature itself.
 [functions.whatsapp-webhook]
 verify_jwt = false
+
+# Helpers on /send/<token> have no account; the function checks their link itself.
+[functions.sender-ticket]
+verify_jwt = false

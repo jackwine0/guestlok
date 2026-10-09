@@ -76,12 +76,23 @@
     @apply inline-flex items-center whitespace-nowrap text-xs font-medium px-2.5 py-1 rounded-full;
   }
   /* Messages */
-  .alert-error {
-    @apply rounded-2xl bg-coral/15 text-[#9A3324] px-4 py-3 text-[15px] font-medium;
+  /* Inline messages: white card, brand icon on the left (drawn in CSS so every alert matches). */
+  .alert-error,
+  .alert-info,
+  .alert-ok {
+    @apply relative rounded-[20px] bg-white text-brown pl-12 pr-4 py-3 text-[15px] leading-snug;
   }
-  .alert-info {
-    @apply rounded-2xl bg-cream text-brown px-4 py-3 text-[15px];
+  .alert-error { @apply ring-1 ring-coral/40; }
+  .alert-info { @apply bg-cream; }
+  .alert-ok { @apply ring-1 ring-leaf/30; }
+  .alert-error::before,
+  .alert-info::before,
+  .alert-ok::before {
+    @apply absolute left-3 top-[11px] w-6 h-6 rounded-full inline-flex items-center justify-center text-[13px] font-semibold leading-none;
   }
+  .alert-error::before { content: "!"; @apply bg-coral text-white; }
+  .alert-info::before { content: "i"; @apply bg-brown text-cream font-serif italic; }
+  .alert-ok::before { content: "✓"; @apply bg-leaf text-white; }
   .field {
     @apply w-full h-12 rounded-2xl border border-sand bg-white px-4 text-[16px] text-brown placeholder:text-brown-soft/60 outline-none focus:border-brown;
   }

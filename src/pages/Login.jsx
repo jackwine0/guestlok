@@ -23,6 +23,20 @@ const COPY = {
   },
 };
 
+/** Supabase auth errors in plain words. */
+function authMessage(err) {
+  const msg = String(err?.message ?? "");
+  const code = err?.code ?? "";
+  if (/invalid login|invalid_credentials/i.test(msg + code)) return "That email and password don’t match. Check them, or reset your password.";
+  if (/not confirmed/i.test(msg) || code === "email_not_confirmed") return "Confirm your email first. Open the link we sent you, then sign in.";
+  if (/already registered|already been registered|user_already_exists/i.test(msg + code)) return "You already have an account with this email. Sign in instead.";
+  if (/rate limit|too many|over_email_send_rate_limit|over_request_rate_limit/i.test(msg + code)) return "Too many tries. Wait a minute, then try again.";
+  if (/password should|weak_password/i.test(msg + code)) return "Choose a stronger password: at least 8 characters.";
+  if (/valid email|invalid format|email_address_invalid/i.test(msg + code)) return "That email address doesn’t look right.";
+  if (/fetch|network|Failed to/i.test(msg)) return "We couldn’t reach Guestlok. Check your internet and try again.";
+  return "Something went wrong. Please try again.";
+}
+
 export default function Login() {
   const [params] = useSearchParams();
   const next = params.get("next")?.startsWith("/") ? params.get("next") : "/app";
@@ -74,14 +88,7 @@ export default function Login() {
         if (error) throw error;
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "";
-      setError(
-        /invalid login/i.test(msg)
-          ? "That email and password don’t match. Try again or reset your password."
-          : /already registered/i.test(msg)
-            ? "You already have an account. Sign in instead."
-            : msg || "Something went wrong. Please try again.",
-      );
+      setError(authMessage(err));
     } finally {
       setBusy(false);
     }
@@ -93,7 +100,7 @@ export default function Login() {
       return;
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
-    if (error) setError(error.message);
+    if (error) setError(authMessage(error));
     else setNotice("Check your inbox. We sent you a link to reset your password.");
   }
 
@@ -195,7 +202,7 @@ export default function Login() {
             )}
 
             {error && <p role="alert" className="alert-error">{error}</p>}
-            {notice && <p role="status" className="rounded-2xl bg-cream px-4 py-3 text-[15px]">{notice}</p>}
+            {notice && <p role="status" className="alert-ok">{notice}</p>}
 
             <button type="submit" disabled={busy} className="mt-3 h-14 rounded-full bg-brown text-cream font-medium text-[16px] inline-flex items-center justify-center gap-2 hover:bg-black transition disabled:opacity-60">
               {busy ? <ButtonSpinner /> : null}

@@ -2,7 +2,9 @@ import { Download, FileText, MapPin } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { ButtonSpinner, Loader } from "../components/Brand.jsx";
+import Modal from "../components/Modal.jsx";
 import { MessageScreen } from "../components/Page.jsx";
+import { useFeedback } from "../lib/feedback.js";
 import { useTitle } from "../lib/useTitle.js";
 import TicketCard from "../components/TicketCard.jsx";
 import { themeOf } from "../lib/invite.js";
@@ -11,16 +13,22 @@ import {
   dataUrlToBlob,
   pngToPdfBlob,
   renderTicketPng,
-  shareOrDownload,
   downloadBlob,
   ticketFilename,
 } from "../lib/ticketExport.jsx";
+
+// iPhones save downloads to Files, not Photos; there we show the image to long-press instead.
+const IS_IOS =
+  typeof navigator !== "undefined" &&
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
 export default function Invite() {
   const { token = "" } = useParams();
   const [invite, setInvite] = useState(undefined);
   const [busy, setBusy] = useState(null); // 'png' | 'pdf' | null
   const [error, setError] = useState(null);
+  const [photo, setPhoto] = useState(null); // iPhone: { url, blob } shown so they can long-press → Save to Photos
+  const { toast } = useFeedback();
 
   useEffect(() => {
     if (!/^[a-f0-9]{32}$/i.test(token)) {
@@ -54,9 +62,15 @@ export default function Invite() {
     try {
       const png = await renderTicketPng(invite);
       if (kind === "png") {
-        await shareOrDownload(await dataUrlToBlob(png.dataUrl), ticketFilename(invite, "png"));
+        const blob = await dataUrlToBlob(png.dataUrl);
+        if (IS_IOS) setPhoto({ url: png.dataUrl, blob });
+        else {
+          downloadBlob(blob, ticketFilename(invite, "png"));
+          toast("Ticket image saved to your downloads");
+        }
       } else {
         downloadBlob(await pngToPdfBlob(png), ticketFilename(invite, "pdf"));
+        toast("Ticket PDF saved to your downloads");
       }
     } catch (err) {
       console.error(err);
@@ -86,6 +100,17 @@ export default function Invite() {
         </a>}
         {error && <p role="alert" className="text-center font-medium">{error}</p>}
       </div>
+
+      <Modal open={!!photo} onClose={() => setPhoto(null)} title="Save your ticket" description="Press and hold the image, then tap “Save to Photos”." size="sm">
+        {photo && (
+          <div className="flex flex-col gap-4">
+            <img src={photo.url} alt={`Invite for ${invite.guest_name}`} className="w-full max-h-[60dvh] object-contain rounded-2xl bg-tile [-webkit-touch-callout:default]" />
+            <button type="button" onClick={() => downloadBlob(photo.blob, ticketFilename(invite, "png"))} className="btn-tile">
+              <Download size={17} aria-hidden="true" /> Save to Files instead
+            </button>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

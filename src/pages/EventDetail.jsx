@@ -6,6 +6,7 @@ import FlowSteps from "../components/FlowSteps.jsx";
 import { EmptyState, StatusChip } from "../components/Page.jsx";
 import PaymentCard from "../components/PaymentCard.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
+import { playChime } from "../lib/chime.js";
 import { useFeedback } from "../lib/feedback.js";
 import { formatEventTime, formatShortDate } from "../lib/format.js";
 import { supabase } from "../lib/supabase.js";
@@ -175,6 +176,7 @@ export default function EventDetail() {
     const fresh = requests.filter((r) => !seen.has(r.id));
     if (!fresh.length) return;
     navigator.vibrate?.([120, 60, 120]);
+    playChime();
     const who = fresh.length === 1 ? `${fresh[0].name || "Someone"} is` : `${fresh.length} people are`;
     toast(`${who} asking to come in at the gate`, {
       tone: "info",

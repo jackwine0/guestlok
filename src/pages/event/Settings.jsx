@@ -181,32 +181,39 @@ export default function Settings() {
 
           {(event.delivery === "plus" || settings.plus_enabled) && <PlusPanel event={event} tier={tier} settings={settings} />}
 
-          {!locked ? (
-            <section className="rounded-[30px] sm:rounded-[36px] bg-white p-6 sm:p-8 ring-2 ring-coral/40" aria-labelledby="end-title">
-              <h3 id="end-title" className="section-title">End event</h3>
-              <p className="mt-2 text-[15px] text-brown-soft">Closes the gate scanner and locks the guest list. If you forget, it ends by itself 24 hours after the start time.</p>
-              <button type="button" onClick={endEvent} className="mt-5 btn w-full bg-coral text-brown hover:brightness-95">End event</button>
-            </section>
-          ) : (
-            <EndedPanel compact event={event} guests={guests} onEventChange={setEvent} />
-          )}
-
-          <section className="rounded-[30px] sm:rounded-[36px] bg-white p-6 sm:p-8" aria-labelledby="delete-title">
-            <h3 id="delete-title" className="section-title">Delete event</h3>
-            <p className="mt-2 text-[15px] text-brown-soft">
-              Removes the event, guest list and invites for good. Your payment record is kept, but it isn’t refunded.
-            </p>
-            <button type="button" onClick={removeEvent} disabled={deleting} className="mt-5 btn-danger w-full">
-              {deleting && <ButtonSpinner />} Delete event
-            </button>
-          </section>
+          {locked && <EndedPanel compact event={event} guests={guests} onEventChange={setEvent} />}
         </div>
       </div>
+
+      {/* Danger zone: last on the page, away from everyday settings */}
+      <section className="bento !py-2 sm:!py-3" aria-labelledby="danger-title">
+        <h3 id="danger-title" className="sr-only">Close or delete this event</h3>
+        <ul className="divide-y divide-tile">
+          {!locked && (
+            <DangerRow
+              title="End event"
+              body="Closes the gate scanner and locks the guest list. Do this after the party. If you forget, it ends by itself 24 hours after the start time."
+            >
+              <button type="button" onClick={endEvent} className="btn w-full sm:w-auto border-[1.5px] border-coral text-[#9A3324] hover:bg-coral hover:text-brown">
+                End event
+              </button>
+            </DangerRow>
+          )}
+          <DangerRow
+            title="Delete event"
+            body="Removes the event, guest list and invites for good. Your payment record is kept, but it isn’t refunded."
+          >
+            <button type="button" onClick={removeEvent} disabled={deleting} className="btn-danger w-full sm:w-auto">
+              {deleting && <ButtonSpinner />} Delete event
+            </button>
+          </DangerRow>
+        </ul>
+      </section>
 
       {/* Save bar */}
       <div
         className={`fixed z-40 left-1/2 lg:left-[calc(50%-199px)] -translate-x-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))] w-[min(94vw,520px)] transition duration-300 ${
-          dirty && !locked ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0 pointer-events-none"
+          dirty && !locked ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0 invisible pointer-events-none"
         }`}
         aria-hidden={!dirty}
       >
@@ -222,6 +229,18 @@ export default function Settings() {
         </div>
       </div>
     </div>
+  );
+}
+
+function DangerRow({ title, body, children }) {
+  return (
+    <li className="py-5 sm:py-6 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
+      <div className="min-w-0 flex-1">
+        <p className="text-[18px] tracking-[-0.02em]">{title}</p>
+        <p className="mt-1 text-[15px] text-brown-soft max-w-2xl">{body}</p>
+      </div>
+      <div className="shrink-0 sm:w-[180px] flex sm:justify-end">{children}</div>
+    </li>
   );
 }
 

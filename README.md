@@ -66,6 +66,8 @@ The app (`src/lib/pricing.js`) and the database (`gl_plus_extra_kobo`) use the s
    5. `20261010000000_ending_events.sql` (optional pg_cron block at the end)
    6. `20261011000000_plus_delivery.sql`
    7. `20261012000000_shared_sending.sql`
+   8. `20261013000000_delete_events.sql`
+   9. `20261014000000_whatsapp_ticket_preview.sql`
 3. Set your real prices (see *Pricing model*).
 4. **Auth → URL Configuration:** Site URL = your domain; add `http://localhost:5173` to Redirect URLs for local dev.
 
@@ -76,6 +78,7 @@ npx supabase secrets set PAYSTACK_SECRET_KEY=sk_test_xxx SITE_URL=https://your-d
 npx supabase functions deploy paystack-init
 npx supabase functions deploy paystack-verify
 npx supabase functions deploy paystack-webhook --no-verify-jwt
+npx supabase functions deploy sender-ticket --no-verify-jwt   # ticket images for helpers' WhatsApp sends
 ```
 
 Paystack → Settings → API Keys & Webhooks → Webhook URL:
@@ -117,6 +120,7 @@ The camera scanner needs HTTPS (or `localhost`). To test on a phone, deploy a pr
 - Build command `npm run build`, output `dist`
 - Env vars: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
 - `vercel.json` rewrites all routes to `index.html`
+- `middleware.js` (Vercel) answers WhatsApp's link preview for `/i/<token>` with that guest's ticket image, so the ticket shows inside the invite message. It reads the same two env vars.
 
 After deploying, update `SITE_URL` (Supabase secret), the Auth Site URL and the template's button URL to the live domain.
 

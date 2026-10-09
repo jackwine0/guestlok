@@ -6,6 +6,7 @@ import { MessageScreen } from "../components/Page.jsx";
 import { formatEventDate, whatsappLink } from "../lib/format.js";
 import { renderMessage } from "../lib/invite.js";
 import { supabase } from "../lib/supabase.js";
+import { openWhatsApp, prepareTicketPreview } from "../lib/whatsappTicket.js";
 import { useTitle } from "../lib/useTitle.js";
 
 /**
@@ -28,6 +29,11 @@ export default function Sender() {
   const done = guests.filter((g) => g.invite_sent_at || g.checked_in_at);
   const next = todo.find((g) => !skipped.has(g.id)) ?? todo[0];
 
+  // Get the next guest's ticket image ready while the helper reads.
+  useEffect(() => {
+    if (data?.event && next) prepareTicketPreview(data.event, next, { senderToken: token });
+  }, [data, next, token]);
+
   if (data === undefined) return <Loader fullScreen label="Opening your list" />;
   if (data === null)
     return (
@@ -44,8 +50,10 @@ export default function Sender() {
   const first = data.label;
   const pct = guests.length ? Math.round((done.length / guests.length) * 100) : 0;
 
-  function send(g) {
-    // Mark as sent straight away; WhatsApp opens in a new tab with the message ready.
+  function send(e, g) {
+    // Open WhatsApp (with the ticket image added to the message), then mark as sent.
+    e.preventDefault();
+    openWhatsApp(e.currentTarget.href, prepareTicketPreview(event, g, { senderToken: token }));
     supabase.rpc("sender_mark_sent", { p_token: token, p_guest: g.id }).then(() => {});
     setData((d) => ({ ...d, guests: d.guests.map((x) => (x.id === g.id ? { ...x, invite_sent_at: new Date().toISOString() } : x)) }));
   }
@@ -88,7 +96,7 @@ export default function Sender() {
               href={whatsappLink(next.phone, renderMessage(event.invite_message, { guest: next, event }))}
               target="_blank"
               rel="noreferrer"
-              onClick={() => send(next)}
+              onClick={(e) => send(e, next)}
               className="mt-4 btn-ochre btn-lg w-full"
             >
               <MessageCircle size={19} aria-hidden="true" /> Send on WhatsApp
@@ -143,7 +151,8 @@ export default function Sender() {
                   href={whatsappLink(g.phone, renderMessage(event.invite_message, { guest: g, event }))}
                   target="_blank"
                   rel="noreferrer"
-                  onClick={() => send(g)}
+                  onPointerDown={() => prepareTicketPreview(event, g, { senderToken: token })}
+                  onClick={(e) => send(e, g)}
                   className={`h-10 px-4 shrink-0 rounded-full text-sm font-medium inline-flex items-center gap-1.5 ${tab === "todo" ? "bg-ochre" : "bg-tile"}`}
                 >
                   <MessageCircle size={15} aria-hidden="true" /> {tab === "todo" ? "Send" : "Again"}

@@ -52,8 +52,13 @@ export function normalizePhone(raw) {
   return digits.length >= 10 && digits.length <= 15 ? digits : null;
 }
 
+// Links that leave the app (invites in WhatsApp, QR codes) always point at the live site,
+// even when you're testing on localhost, so WhatsApp can show the ticket preview.
+// Set VITE_SITE_URL in .env.local; without it the current address is used.
+const SITE_URL = (import.meta.env.VITE_SITE_URL || "").replace(/\/$/, "");
+
 export function inviteUrl(token) {
-  return `${window.location.origin}/i/${token}`;
+  return `${SITE_URL || window.location.origin}/i/${token}`;
 }
 
 export function scannerUrl(eventId, key) {

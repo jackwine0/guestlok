@@ -400,7 +400,7 @@ export default function InvitationEditor({ event, onSaved }) {
       {/* Save bar: appears only when something changed */}
       <div
         className={`fixed z-40 left-1/2 lg:left-[calc(50%-219px)] -translate-x-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))] w-[min(94vw,560px)] transition duration-300 ${
-          dirty ? "translate-y-0 opacity-100" : "translate-y-24 opacity-0 pointer-events-none"
+          dirty ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0 invisible pointer-events-none"
         }`}
         aria-hidden={!dirty}
       >
