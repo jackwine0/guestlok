@@ -4,7 +4,7 @@
 //   { event_id, kind: 'upgrade' }                      → move a paid Standard event to Plus (pays the difference)
 //   { event_id, kind: 'topup', invites: number }       → buy extra WhatsApp sends for a Plus event
 // → { authorization_url, reference }
-import { adminClient, corsHeaders, env, json, PAYSTACK_API, requireUser } from '../_shared/common.ts'
+import { adminClient, corsHeaders, env, json, PAYSTACK_API, requireUser, returnBase } from '../_shared/common.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
         amount,
         currency: 'NGN',
         reference,
-        callback_url: `${env('SITE_URL')}/app/events/${event.id}${kind === 'plan' ? '' : '/settings'}`,
+        callback_url: `${returnBase(req)}/app/events/${event.id}${kind === 'plan' ? '' : '/settings'}`,
         metadata: { event_id: event.id, tier_id: tier.id, event_name: event.name, kind, delivery, invites, label },
       }),
     })

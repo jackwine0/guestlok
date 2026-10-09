@@ -1,10 +1,24 @@
 // Shared helpers for Guestlok edge functions (Deno runtime).
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 
+// Browsers may call these functions from the live site or from local dev (any localhost port).
+// Access is controlled by the user's JWT in the Authorization header, not by cookies, so a
+// wildcard origin is safe here.
 export const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get('SITE_URL') ?? '*',
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
+/**
+ * Where Paystack should send the host back to: the page they paid from when that is the
+ * live site or local dev, otherwise SITE_URL. Never an arbitrary third-party origin.
+ */
+export function returnBase(req: Request): string {
+  const site = env('SITE_URL').replace(/\/$/, '')
+  const origin = req.headers.get('origin') ?? ''
+  if (origin === site || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return origin
+  return site
 }
 
 export function json(body: unknown, status = 200): Response {

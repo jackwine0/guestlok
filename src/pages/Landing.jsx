@@ -194,7 +194,7 @@ export default function Landing() {
       >
         <div className="mx-auto max-w-6xl px-3 sm:px-5 pt-3">
           <div className="flex items-center gap-2 rounded-full bg-brown/95 backdrop-blur text-cream pl-5 pr-1.5 py-1.5 shadow-[0_14px_40px_rgba(43,27,18,0.25)]">
-            <Link to="/" aria-label="Guestlok home" className="text-[22px] shrink-0" tabIndex={pastHero ? 0 : -1}>
+            <Link to="/" aria-label="Guestlok home" className="text-[22px] min-w-0" tabIndex={pastHero ? 0 : -1}>
               <Wordmark disc="#EEB12F" hole="#2B1B12" />
             </Link>
             <nav className="hidden md:flex flex-1 justify-center gap-6 text-[14px]">
@@ -203,10 +203,13 @@ export default function Landing() {
               ))}
             </nav>
             <span className="flex-1 md:hidden" />
-            <Link to={startHref} tabIndex={pastHero ? 0 : -1} className="btn-ochre h-10 px-4 text-[14px]">
+            <Link to={session ? "/app" : "/login"} tabIndex={pastHero ? 0 : -1} className="max-[359px]:hidden px-2 sm:px-3 text-[14px] whitespace-nowrap hover:text-ochre">
+              {session ? "My events" : "Sign in"}
+            </Link>
+            <Link to={startHref} tabIndex={pastHero ? 0 : -1} className="btn-ochre h-10 px-4 text-[14px] whitespace-nowrap shrink-0">
               Plan your event
             </Link>
-            <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" tabIndex={pastHero ? 0 : -1} className="md:hidden w-10 h-10 rounded-full bg-white/10 inline-flex items-center justify-center">
+            <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" tabIndex={pastHero ? 0 : -1} className="md:hidden w-10 h-10 shrink-0 rounded-full bg-white/10 inline-flex items-center justify-center">
               <Menu size={18} aria-hidden="true" />
             </button>
           </div>
@@ -259,8 +262,9 @@ export default function Landing() {
               {navLinks.slice(0, 3).map(([label, href]) => (
                 <a key={href} href={href} className="hidden md:inline hover:text-ochre">{label}</a>
               ))}
+              {accountLink("sm:hidden h-11 px-4 rounded-full border-[1.5px] border-cream/40 inline-flex items-center text-[14px] whitespace-nowrap")}
               {accountLink("hidden sm:inline hover:text-ochre")}
-              <Link to={startHref} className="btn-ochre h-11 px-4 sm:px-5 text-[14px] sm:text-[15px]">Plan your event</Link>
+              <Link to={startHref} className="max-sm:hidden btn-ochre h-11 px-5 text-[15px]">Plan your event</Link>
               <button type="button" onClick={() => setMenu(true)} aria-label="Open menu" aria-expanded={menu} className="md:hidden w-11 h-11 rounded-full border-[1.5px] border-cream/40 inline-flex items-center justify-center">
                 <Menu size={20} aria-hidden="true" />
               </button>

@@ -8,7 +8,7 @@ import { supabase } from "../lib/supabase.js";
 import { ButtonSpinner, KeyholeDisc } from "./Brand.jsx";
 
 /** Shown on an ended event: the outcome, the CSV, and "reopen" if it was a mistake. */
-export default function EndedPanel({ event, guests, onEventChange, className = "" }) {
+export default function EndedPanel({ event, guests, onEventChange, className = "", compact = false }) {
   const { confirm, toast } = useFeedback();
   const [busy, setBusy] = useState(false);
   const invited = guests.reduce((n, g) => n + g.admits, 0);
@@ -41,18 +41,18 @@ export default function EndedPanel({ event, guests, onEventChange, className = "
   return (
     <section className={`relative overflow-hidden rounded-[30px] sm:rounded-[36px] bg-brown text-cream p-6 sm:p-8 ${className}`} aria-labelledby="ended-title">
       <KeyholeDisc disc="#EEB12F" hole="#2B1B12" className="absolute -right-10 -top-10 w-44 h-44 opacity-15" />
-      <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+      <div className={`relative flex flex-col gap-6 ${compact ? "" : "lg:flex-row lg:items-end lg:justify-between"}`}>
         <div>
           <p className="text-sand text-sm">
             Ended {how}
             {event.ended_at ? ` · ${formatShortDate(event.ended_at)}, ${formatEventTime(event.ended_at)}` : ""}
           </p>
-          <h2 id="ended-title" className="mt-2 hero-title">
+          <h2 id="ended-title" className={`mt-2 ${compact ? "text-[32px] font-normal tracking-[-0.04em] leading-[1.05]" : "hero-title"}`}>
             {came} of {invited} guests came
           </h2>
           <p className="mt-2 text-sand max-w-lg">The gate is closed and the list is locked. Everything stays here for your records.</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2.5 shrink-0">
+        <div className={`flex flex-col gap-2.5 shrink-0 ${compact ? "" : "sm:flex-row"}`}>
           <button type="button" onClick={download} disabled={!guests.length} className="h-[52px] px-6 rounded-full bg-ochre text-brown font-medium inline-flex items-center justify-center gap-2 hover:brightness-95 disabled:opacity-50">
             <Download size={18} aria-hidden="true" /> Download attendance
           </button>

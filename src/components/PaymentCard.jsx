@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { friendlyError, functionError } from "../lib/errors.js";
 import { useFeedback } from "../lib/feedback.js";
 import { formatEventDate, formatEventTime, formatNaira } from "../lib/format.js";
+import { deleteConfirmOptions, deleteEvent } from "../lib/deleteEvent.js";
 import { unlocks } from "../lib/plans.js";
 import { planPriceKobo, usePricing } from "../lib/pricing.js";
 import { supabase } from "../lib/supabase.js";
@@ -62,14 +63,9 @@ export default function PaymentCard({ event, onEventChange, notice, showSteps = 
   }
 
   async function deleteDraft() {
-    const sure = await confirm({
-      title: "Delete this event?",
-      body: `“${event.name}” hasn’t been paid for yet. Deleting it removes it for good.`,
-      confirmLabel: "Delete event",
-      danger: true,
-    });
+    const sure = await confirm(deleteConfirmOptions(event));
     if (!sure) return;
-    const { error } = await supabase.from("events").delete().eq("id", event.id);
+    const error = await deleteEvent(event);
     if (error) toast(friendlyError(error), { tone: "error" });
     else {
       toast("Event deleted");

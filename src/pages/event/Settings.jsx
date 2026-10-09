@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { ButtonSpinner } from "../../components/Brand.jsx";
 import EndedPanel from "../../components/EndedPanel.jsx";
 import PlusPanel from "../../components/PlusPanel.jsx";
+import { deleteConfirmOptions, deleteEvent } from "../../lib/deleteEvent.js";
 import { friendlyError } from "../../lib/errors.js";
 import { useFeedback } from "../../lib/feedback.js";
 import { usePricing } from "../../lib/pricing.js";
@@ -41,6 +42,21 @@ export default function Settings() {
   const [busy, setBusy] = useState(false);
   const { confirm, toast } = useFeedback();
   const { tiers, settings } = usePricing();
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
+
+  async function removeEvent() {
+    const sure = await confirm(deleteConfirmOptions(event, guests.length));
+    if (!sure) return;
+    setDeleting(true);
+    const error = await deleteEvent(event);
+    setDeleting(false);
+    if (error) toast(friendlyError(error), { tone: "error" });
+    else {
+      toast(`“${event.name}” deleted`);
+      navigate("/app", { replace: true });
+    }
+  }
   const tier = tiers.find((t) => t.id === event.tier_id);
   const locked = event.status !== "active";
   const dirty = Object.keys(saved).some((k) => saved[k] !== form[k]);
@@ -172,8 +188,18 @@ export default function Settings() {
               <button type="button" onClick={endEvent} className="mt-5 btn w-full bg-coral text-brown hover:brightness-95">End event</button>
             </section>
           ) : (
-            <EndedPanel event={event} guests={guests} onEventChange={setEvent} />
+            <EndedPanel compact event={event} guests={guests} onEventChange={setEvent} />
           )}
+
+          <section className="rounded-[30px] sm:rounded-[36px] bg-white p-6 sm:p-8" aria-labelledby="delete-title">
+            <h3 id="delete-title" className="section-title">Delete event</h3>
+            <p className="mt-2 text-[15px] text-brown-soft">
+              Removes the event, guest list and invites for good. Your payment record is kept, but it isn’t refunded.
+            </p>
+            <button type="button" onClick={removeEvent} disabled={deleting} className="mt-5 btn-danger w-full">
+              {deleting && <ButtonSpinner />} Delete event
+            </button>
+          </section>
         </div>
       </div>
 

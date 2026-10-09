@@ -9,6 +9,12 @@ export async function functionError(error, fallback) {
       /* not JSON */
     }
   }
+  // No response at all: blocked by the browser (CORS), offline, or the function isn't deployed.
+  if (error?.name === "FunctionsFetchError" || error?.name === "FunctionsRelayError") {
+    return navigator.onLine === false
+      ? "You’re offline. Check your connection and try again."
+      : "Couldn’t reach the payment server. Check the function is deployed and try again.";
+  }
   return fallback;
 }
 
