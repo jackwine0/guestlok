@@ -20,7 +20,7 @@ function designKey(event, guest) {
 /**
  * Makes and uploads this guest's ticket image (once per design). Safe to call early to get
  * a head start. Pass { senderToken } on the helper page, where uploads go through the
- * sender-ticket function.
+ * sender-ticket function. Resolves to the image (data URL) once it's uploaded.
  */
 export function prepareTicketPreview(event, guest, { senderToken } = {}) {
   if (!guest?.token) return null;
@@ -28,19 +28,22 @@ export function prepareTicketPreview(event, guest, { senderToken } = {}) {
   if (cache.has(key)) return cache.get(key);
 
   const promise = (async () => {
-    const { dataUrl } = await renderTicketJpeg(toInvite(guest, event));
+    const invite = toInvite(guest, event);
+    // If the cover photo can't be loaded, still send a ticket (without the photo).
+    const { dataUrl } = await renderTicketJpeg(invite).catch(() => renderTicketJpeg({ ...invite, cover_image_url: null }));
     if (senderToken) {
       const { error } = await supabase.functions.invoke("sender-ticket", {
         body: { token: senderToken, guest_id: guest.id, image: dataUrl },
       });
       if (error) throw error;
-      return;
+      return dataUrl;
     }
     const path = `${event.owner_id}/${event.id}/${guest.token}-wa.jpg`;
     const { error } = await supabase.storage
       .from("invite-tickets")
       .upload(path, await dataUrlToBlob(dataUrl), { upsert: true, contentType: "image/jpeg", cacheControl: "300" });
     if (error) throw error;
+    return dataUrl;
   })();
 
   promise.state = "pending";

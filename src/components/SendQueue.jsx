@@ -1,12 +1,11 @@
 import { Check, ChevronRight, MessageCircle } from "lucide-react";
+import { ButtonSpinner } from "./Brand.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { whatsappLink } from "../lib/format.js";
 import { markInviteSent, renderMessage } from "../lib/invite.js";
-import { canShareFiles } from "../lib/ticketExport.jsx";
 import { prepareTicketPreview } from "../lib/whatsappTicket.js";
 import WhatsAppButton from "./WhatsAppButton.jsx";
 import Modal from "./Modal.jsx";
-import TicketButton from "./TicketButton.jsx";
 
 /**
  * "Send to all": walks the host through every guest, one tap each.
@@ -26,7 +25,6 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
   const noPhone = snapshot.filter((g) => !g.phone).length;
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(() => new Set());
-  const share = canShareFiles();
 
   useEffect(() => setIndex(0), [includeSent, side]);
 
@@ -38,6 +36,20 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
 
   const guest = queue[index];
   const finished = index >= queue.length;
+
+  // The ticket picture the guest will see in the message.
+  const [preview, setPreview] = useState(null); // { id, url } | { id, failed }
+  useEffect(() => {
+    if (!guest) return;
+    let alive = true;
+    prepareTicketPreview(event, guest)
+      ?.then((url) => alive && setPreview({ id: guest.id, url }))
+      .catch(() => alive && setPreview({ id: guest.id, failed: true }));
+    return () => {
+      alive = false;
+    };
+  }, [guest, event]);
+  const shown = preview?.id === guest?.id ? preview : null;
   const message = guest ? renderMessage(event.invite_message, { guest, event }) : "";
 
   function sent() {
@@ -71,10 +83,27 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
           </div>
         ) : (
           <>
-            <div className="rounded-[24px] bg-tile p-5">
-              <p className="text-[20px] tracking-[-0.02em]">{guest.name}</p>
-              <p className="text-sm text-brown-soft">+{guest.phone} · admits {guest.admits}{guest.side ? ` · ${guest.side}` : ""}</p>
-              <p className="mt-4 text-[14px] leading-relaxed whitespace-pre-line line-clamp-6">{message}</p>
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[20px] tracking-[-0.02em] truncate">{guest.name}</p>
+              <p className="shrink-0 text-sm text-brown-soft">+{guest.phone}</p>
+            </div>
+
+            {/* What the guest gets: one WhatsApp message with their ticket on top */}
+            <div className="rounded-[24px] bg-[#E6DDD2] p-3 sm:p-4">
+              <div className="ml-auto max-w-[92%] rounded-[18px] rounded-tr-md bg-[#DCF8C6] p-1.5 shadow-sm">
+                <div className="relative h-[150px] rounded-[14px] overflow-hidden bg-white/60 flex items-center justify-center">
+                  {shown?.url ? (
+                    <img src={shown.url} alt={`Ticket for ${guest.name}`} className="w-full h-full object-cover object-center" />
+                  ) : shown?.failed ? (
+                    <span className="px-4 text-center text-xs text-brown-soft">Ticket picture couldn’t be added. The message still has their ticket link.</span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 text-xs text-brown-soft">
+                      <ButtonSpinner /> Adding their ticket…
+                    </span>
+                  )}
+                </div>
+                <p className="px-2 pt-2 pb-1 text-[13px] leading-relaxed whitespace-pre-line line-clamp-5">{message}</p>
+              </div>
             </div>
 
             <div className="flex flex-col gap-2.5">
@@ -85,19 +114,15 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
                 onOpened={sent}
                 className="btn-ochre btn-lg"
               >
-                <MessageCircle size={20} aria-hidden="true" /> Open chat with {guest.name.split(" ")[0]}
+                <MessageCircle size={20} aria-hidden="true" /> Send to {guest.name.split(" ")[0]} on WhatsApp
               </WhatsAppButton>
-              {share && (
-                <TicketButton guest={guest} event={event} message={message} onShared={sent} label="Share ticket image instead" className="btn-tile" />
-              )}
               <button type="button" onClick={() => setIndex((i) => i + 1)} className="btn text-brown-soft hover:text-brown">
                 Skip <ChevronRight size={16} aria-hidden="true" />
               </button>
             </div>
 
             <p className="text-xs text-brown-soft">
-              WhatsApp opens with the message ready. Tap send, then come back here for the next guest.
-              {share && " “Share ticket image” lets you pick the chat and sends the card as a picture."}
+              WhatsApp opens with the message and ticket ready. Wait a second for the ticket to appear, tap send, then come back here for the next guest.
             </p>
           </>
         )}
