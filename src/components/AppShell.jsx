@@ -49,7 +49,7 @@ export default function AppShell() {
           </button>
         </div>
       </header>
-      <main className="flex-1 mx-auto w-full max-w-[1440px] px-4 sm:px-7 pt-2 pb-12">
+      <main className="flex-1 mx-auto w-full max-w-[1440px] px-4 sm:px-7 pt-2 pb-12 [overflow-x:clip]">
         <ErrorBoundary compact resetKey={pathname}>
           <Suspense fallback={<Loader />}>
             <Outlet />

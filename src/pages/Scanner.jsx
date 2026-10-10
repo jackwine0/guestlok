@@ -21,6 +21,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { ButtonSpinner, KeyholeDisc, Loader, Wordmark } from "../components/Brand.jsx";
 import { MessageScreen } from "../components/Page.jsx";
+import Segmented from "../components/Segmented.jsx";
+import { useSwapMotion } from "../lib/tabTransition.js";
 import { extractToken, formatEventTime } from "../lib/format.js";
 import { supabase } from "../lib/supabase.js";
 import { useTitle } from "../lib/useTitle.js";
@@ -99,6 +101,7 @@ export default function Scanner() {
 
   const [info, setInfo] = useState(undefined);
   const [tab, setTab] = useState("scan");
+  const modeMotion = useSwapMotion(tab === "scan" ? 0 : 1);
   const [result, setResult] = useState(null);
   const [asking, setAsking] = useState(null); // { name } while asking the host
   const [recent, setRecent] = useState([]);
@@ -174,23 +177,19 @@ export default function Scanner() {
   const pct = info.invited_people ? Math.min(1, info.arrived_people / info.invited_people) : 0;
 
   const modeSwitch = (
-    <div className="flex-1 grid grid-cols-2 p-1 rounded-full bg-white/10" role="tablist" aria-label="Check-in mode">
-      {[
-        ["scan", "Scan QR", QrCode],
-        ["find", "Find by name", Search],
-      ].map(([id, label, Icon]) => (
-        <button
-          key={id}
-          type="button"
-          role="tab"
-          aria-selected={tab === id}
-          onClick={() => setTab(id)}
-          className={`h-12 rounded-full text-[15px] inline-flex items-center justify-center gap-2 transition ${tab === id ? "bg-ochre text-brown font-medium" : "text-cream"}`}
-        >
-          <Icon size={17} aria-hidden="true" /> {label}
-        </button>
-      ))}
-    </div>
+    <Segmented
+      tone="dark"
+      size="lg"
+      fill
+      label="Check-in mode"
+      value={tab}
+      onChange={setTab}
+      options={[
+        { value: "scan", label: "Scan QR", icon: QrCode },
+        { value: "find", label: "Find by name", icon: Search },
+      ]}
+      className="flex-1 [&>button]:!h-12"
+    />
   );
   const soundButton = (
     <button
@@ -230,7 +229,7 @@ export default function Scanner() {
 
           {offline && <div className="mx-4 mb-2 lg:mx-0 lg:mb-3">{offline}</div>}
 
-          <main className="flex-1 min-h-0 px-3 lg:px-0 flex flex-col">
+          <main key={tab} className={`flex-1 min-h-0 px-3 lg:px-0 flex flex-col ${modeMotion}`}>
             {tab === "scan" ? (
               <ScanTab
                 key={tab}

@@ -220,10 +220,19 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 @keyframes gl-countdown { to { width: 0%; } }
 @media (prefers-reduced-motion: reduce) { .gl-countdown { animation: none; } }
 
-/* Tab switch: the new section rises in (the sliding pill lives in EventDetail). */
-.gl-tab-in { animation: gl-tab-in .34s cubic-bezier(.2, .8, .2, 1) both; }
+/* Tab switch: the pill slides (EventDetail) and the new section glides in from the
+   side of the tab you tapped. With "reduce motion" on (common on Windows laptops with
+   animations switched off) it still cross-fades, just without the movement. */
+.gl-tab-in { animation: gl-tab-in .42s cubic-bezier(.22, .9, .3, 1) both; }
+.gl-tab-in.gl-from-right { animation-name: gl-tab-in-right; }
+.gl-tab-in.gl-from-left { animation-name: gl-tab-in-left; }
 @keyframes gl-tab-in { from { opacity: 0; transform: translateY(10px); } }
-@media (prefers-reduced-motion: reduce) { .gl-tab-in { animation: none; } }
+@keyframes gl-tab-in-right { from { opacity: 0; transform: translateX(28px); } }
+@keyframes gl-tab-in-left { from { opacity: 0; transform: translateX(-28px); } }
+@keyframes gl-tab-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .gl-tab-in, .gl-tab-in.gl-from-right, .gl-tab-in.gl-from-left { animation: gl-tab-fade .25s ease-out both; }
+}
 
 /* Scrolls, but without a visible scrollbar (modals, sheets). */
 .gl-noscrollbar { scrollbar-width: none; -ms-overflow-style: none; }

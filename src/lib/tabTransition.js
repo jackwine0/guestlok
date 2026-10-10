@@ -9,7 +9,7 @@ import { useLayoutEffect, useRef, useState } from "react";
  * style for an absolutely positioned pill. The first placement doesn't animate;
  * later moves glide. Re-measures when the track resizes (fonts, badges, rotation).
  */
-export function useSlidingPill(trackRef, activeKey) {
+export function useSlidingPill(trackRef, activeKey, selector = '[aria-current="page"]') {
   const [rect, setRect] = useState(null);
   const placed = useRef(false);
 
@@ -17,7 +17,7 @@ export function useSlidingPill(trackRef, activeKey) {
     const track = trackRef.current;
     if (!track) return;
     const measure = () => {
-      const el = track.querySelector('[aria-current="page"]');
+      const el = track.querySelector(selector);
       if (!el) return setRect(null);
       const next = { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
       setRect((r) => (r && r.x === next.x && r.y === next.y && r.w === next.w && r.h === next.h ? r : next));
@@ -27,7 +27,7 @@ export function useSlidingPill(trackRef, activeKey) {
     ro.observe(track);
     for (const child of track.children) if (!child.hasAttribute("aria-hidden")) ro.observe(child);
     return () => ro.disconnect();
-  }, [trackRef, activeKey]);
+  }, [trackRef, activeKey, selector]);
 
   useLayoutEffect(() => {
     if (!rect || placed.current) return;
@@ -43,4 +43,16 @@ export function useSlidingPill(trackRef, activeKey) {
     transform: `translate3d(${rect.x}px, ${rect.y}px, 0)`,
     transition: placed.current ? undefined : "none",
   };
+}
+
+/**
+ * Class for content that changes with a tab: it glides in from the side of the tab
+ * you picked (same motion as the event tabs). Key the content by the tab so it re-mounts.
+ */
+export function useSwapMotion(index) {
+  const ref = useRef({ index, cls: "" });
+  if (ref.current.index !== index) {
+    ref.current = { index, cls: index > ref.current.index ? "gl-tab-in gl-from-right" : "gl-tab-in gl-from-left" };
+  }
+  return ref.current.cls;
 }

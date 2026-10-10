@@ -15,6 +15,7 @@ import { preloadSections } from "./event/sections.js";
 import { useSlidingPill } from "../lib/tabTransition.js";
 
 
+const SECTION_ORDER = ["", "guests", "invitation", "gate", "settings"];
 const SECTION_TITLES = { guests: "Guests", invitation: "Invitation", gate: "Gate", settings: "Settings" };
 
 /**
@@ -186,6 +187,20 @@ export default function EventDetail() {
   }, [requests, loading, id, toast, navigate]);
 
   const { pathname } = location;
+
+  // Slide the new section in from the side of the tab you came from.
+  const tabIndex = SECTION_ORDER.indexOf(pathname.split("/").pop());
+  const here = tabIndex === -1 ? 0 : tabIndex;
+  const tabAnim = useRef({ path: pathname, index: here, cls: "gl-tab-in" });
+  if (tabAnim.current.path !== pathname) {
+    const from = tabAnim.current.index;
+    tabAnim.current = {
+      path: pathname,
+      index: here,
+      cls: here === from ? "gl-tab-in" : here > from ? "gl-tab-in gl-from-right" : "gl-tab-in gl-from-left",
+    };
+  }
+  const tabMotion = tabAnim.current.cls;
   const section = SECTION_TITLES[pathname.split("/").pop()] ?? (event?.status === "draft" ? "Checkout" : "Overview");
   useTitle(section, event?.name);
 
@@ -244,7 +259,7 @@ export default function EventDetail() {
       {payNotice && live && <p role="status" className="bg-white rounded-[24px] px-6 py-4 font-medium">{payNotice}</p>}
       {live ? (
         <Suspense fallback={<Loader label="Loading" />}>
-          <div key={pathname} className="gl-tab-in flex flex-col gap-[18px]">
+          <div key={pathname} className={`${tabMotion} flex flex-col gap-[18px]`}>
             <Outlet context={{ event, setEvent, guests, reloadGuests: loadGuests, requests, reloadRequests: loadRequests }} />
           </div>
         </Suspense>
@@ -329,7 +344,7 @@ function PhoneNav({ guests, requests }) {
       <ul className="relative isolate flex gap-1">
         <li
           aria-hidden="true"
-          className={`absolute inset-y-0 left-0 -z-10 rounded-full bg-brown transition-transform motion-reduce:transition-none ${EASE}`}
+          className={`absolute inset-y-0 left-0 -z-10 rounded-full bg-brown transition-transform ${EASE}`}
           style={{
             width: `calc((100% - ${gap * (PHONE_ITEMS.length - 1)}px) * ${GROW / units})`,
             transform: `translateX(calc(${active} * (100% / ${GROW} + ${gap}px)))`,
@@ -341,7 +356,7 @@ function PhoneNav({ guests, requests }) {
           return (
             <li
               key={label}
-              className={`min-w-0 basis-0 transition-[flex-grow] motion-reduce:transition-none ${EASE}`}
+              className={`min-w-0 basis-0 transition-[flex-grow] ${EASE}`}
               style={{ flexGrow: on ? GROW : 1 }}
             >
               <NavLink

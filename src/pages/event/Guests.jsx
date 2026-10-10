@@ -8,7 +8,9 @@ import Modal from "../../components/Modal.jsx";
 import SendQueue from "../../components/SendQueue.jsx";
 import ShareSending from "../../components/ShareSending.jsx";
 import TicketButton from "../../components/TicketButton.jsx";
+import Segmented from "../../components/Segmented.jsx";
 import WhatsAppButton from "../../components/WhatsAppButton.jsx";
+import { useSwapMotion } from "../../lib/tabTransition.js";
 import { prepareTicketPreview } from "../../lib/whatsappTicket.js";
 import { friendlyError } from "../../lib/errors.js";
 import { formatEventTime, inviteUrl, normalizePhone, whatsappLink } from "../../lib/format.js";
@@ -79,6 +81,7 @@ export default function Guests() {
     });
   }, [guests, query, filter, sideFilter]);
 
+  const listMotion = useSwapMotion(FILTERS.findIndex(([k]) => k === filter));
   const flash = (msg, tone) => toast(msg, tone ? { tone } : undefined);
   const stats = [
     { label: "On the list", value: people, of: event.headcount, bar: event.headcount ? people / event.headcount : 0, sub: `${guests.length} invite${guests.length === 1 ? "" : "s"} · ${left} spaces left` },
@@ -107,12 +110,12 @@ export default function Guests() {
           </button>
         )}
         {!locked && (
-          <div className="grid grid-cols-2 sm:flex gap-2 w-full sm:w-auto">
+          <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 w-full xl:w-auto [&>button]:whitespace-nowrap">
             <button type="button" aria-haspopup="dialog" onClick={() => setPanel("add")} className="h-[52px] px-3 sm:px-5 rounded-full bg-brown text-cream inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition">
               <UserPlus size={18} aria-hidden="true" /> Add guest
             </button>
             <button type="button" aria-haspopup="dialog" onClick={() => setPanel("import")} className="h-[52px] px-3 sm:px-5 rounded-full bg-white inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition">
-              <Upload size={18} aria-hidden="true" /> Import CSV
+              <Upload size={18} aria-hidden="true" className="shrink-0" /> <span>Import<span className="md:max-lg:hidden"> CSV</span></span>
             </button>
             {guests.length > 0 && (
               <button
@@ -120,7 +123,7 @@ export default function Guests() {
                 onClick={() => flash(`Downloaded ${downloadAttendance(event, guests)} guests`)}
                 aria-label="Download guest list as CSV"
                 title="Download CSV"
-                className="max-sm:hidden h-[52px] w-[52px] rounded-full bg-white inline-flex items-center justify-center hover:-translate-y-px transition"
+                className="max-md:hidden h-[52px] w-[52px] rounded-full bg-white inline-flex items-center justify-center hover:-translate-y-px transition"
               >
                 <Download size={18} aria-hidden="true" />
               </button>
@@ -130,13 +133,13 @@ export default function Guests() {
                 type="button"
                 onClick={() => setSharing(true)}
                 aria-haspopup="dialog"
-                className="h-[52px] px-3 sm:px-5 rounded-full bg-white inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition max-sm:col-span-2"
+                className="h-[52px] px-3 sm:px-5 rounded-full bg-white inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition"
               >
-                <Share2 size={18} aria-hidden="true" /> Share sending
+                <Share2 size={18} aria-hidden="true" className="shrink-0" /> <span>Share<span className="max-[359px]:hidden"> sending</span></span>
               </button>
             )}
             {guests.length > 0 && (
-              <button type="button" onClick={() => setSending(true)} className="col-span-2 h-[52px] px-5 rounded-full bg-ochre font-medium inline-flex items-center justify-center gap-2 hover:-translate-y-px transition">
+              <button type="button" onClick={() => setSending(true)} className={`${plus ? "col-span-2" : ""} md:ml-auto xl:ml-0 h-[52px] px-3 sm:px-5 rounded-full bg-ochre font-medium inline-flex items-center justify-center gap-2 hover:-translate-y-px transition`}>
                 <Send size={18} aria-hidden="true" /> Send all{unsent > 0 ? ` (${unsent})` : ""}
               </button>
             )}
@@ -171,11 +174,11 @@ export default function Guests() {
       ) : null}
 
       {/* Numbers */}
-      <div className="grid gap-3 sm:gap-[18px] grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 sm:gap-[18px] grid-cols-2 md:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className={`rounded-[26px] sm:rounded-[30px] p-4 sm:p-6 min-w-0 ${s.tone === "ochre" ? "bg-ochre" : "bg-white"}`}>
             <p className={`text-[14px] sm:text-[15px] ${s.tone === "ochre" ? "" : "text-brown-soft"}`}>{s.label}</p>
-            <p className="bento-num text-[clamp(34px,4vw,48px)] mt-2 sm:mt-3">
+            <p className="bento-num text-[clamp(34px,3.6vw,48px)] mt-2 sm:mt-3">
               {s.value}
               {s.of != null && <span className="text-[0.45em] text-mute"> / {s.of}</span>}
             </p>
@@ -225,24 +228,18 @@ export default function Guests() {
               </>
             )}
           </div>
-          <div className="-mx-4 sm:mx-0 px-4 sm:px-0 overflow-x-auto [scrollbar-width:none]">
-            <div className="inline-flex gap-1 p-1 rounded-full bg-tile" role="group" aria-label="Filter guests">
-              {FILTERS.map(([key, label]) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-pressed={filter === key}
-                  onClick={() => {
-                    setFilter(key);
-                    setLimit(PAGE);
-                  }}
-                  className={`h-10 px-4 rounded-full text-sm whitespace-nowrap inline-flex items-center gap-2 transition ${filter === key ? "bg-brown text-cream" : "text-brown-soft hover:text-brown"}`}
-                >
-                  {label}
-                  <span className={`text-xs tabular-nums ${filter === key ? "text-white/70" : "text-mute"}`}>{counts[key]}</span>
-                </button>
-              ))}
-            </div>
+          <div>
+            <Segmented
+              role="group"
+              label="Filter guests"
+              grid2
+              value={filter}
+              onChange={(key) => {
+                setFilter(key);
+                setLimit(PAGE);
+              }}
+              options={FILTERS.map(([key, label]) => ({ value: key, label, count: counts[key] }))}
+            />
           </div>
         </div>
 
@@ -268,7 +265,7 @@ export default function Guests() {
               <span>Status</span>
               <span className="text-right pr-1">Actions</span>
             </div>
-            <ul className="divide-y divide-tile">
+            <ul key={filter} className={`divide-y divide-tile ${listMotion}`}>
               {shown.slice(0, limit).map((g) => (
                 <GuestRow key={g.id} guest={g} event={event} locked={locked} onToast={flash} onGuestlokSend={plus ? setSendOnly : null} />
               ))}
@@ -490,6 +487,8 @@ function GuestRow({ guest, event, locked, onToast, onGuestlokSend }) {
       : guest.phone
         ? { text: "Not sent", cls: "bg-tile text-brown-soft" }
         : { text: "No phone", cls: "bg-tile text-brown-soft" };
+  // Sending an invite to someone already inside makes no sense; their row gets simpler.
+  const showWa = !locked && !!guest.phone && !onGuestlokSend && !guest.checked_in_at;
   const icon = "h-10 w-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center transition";
 
   return (
@@ -529,13 +528,13 @@ function GuestRow({ guest, event, locked, onToast, onGuestlokSend }) {
             <Send size={15} aria-hidden="true" /> {guest.wa_status && guest.wa_status !== "failed" ? "Resend" : guest.wa_status === "failed" ? "Retry" : "Send"}
           </button>
         )}
-        {!locked && guest.phone && !onGuestlokSend && (
+        {showWa && (
           <WhatsAppButton
             href={whatsappLink(guest.phone, message)}
             prepare={() => prepareTicketPreview(event, guest)}
             onOpened={markSent}
             busyLabel="Adding ticket…"
-            className="flex-1 min-w-0 lg:flex-none h-10 px-4 rounded-full bg-ochre text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:brightness-95 whitespace-nowrap"
+            className="flex-1 min-w-0 lg:flex-none h-10 px-4 rounded-full bg-ochre text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:brightness-95 whitespace-nowrap [&_svg]:shrink-0"
           >
             <MessageCircle size={15} aria-hidden="true" /> WhatsApp
           </WhatsAppButton>
@@ -546,8 +545,8 @@ function GuestRow({ guest, event, locked, onToast, onGuestlokSend }) {
             event={event}
             message={message}
             onShared={markSent}
-            label={<span className={guest.phone ? "max-sm:sr-only" : ""}>Ticket</span>}
-            className={`${guest.phone ? "max-sm:w-10 max-sm:px-0 sm:px-4" : "flex-1 lg:flex-none px-4"} h-10 shrink-0 rounded-full bg-tile hover:bg-sand text-sm font-medium inline-flex items-center justify-center gap-1.5`}
+            label={<span className={showWa ? "max-sm:sr-only" : ""}>Ticket</span>}
+            className={`${showWa ? "max-sm:w-10 max-sm:px-0 sm:px-4 shrink-0" : "flex-1 lg:flex-none px-4"} h-10 [&_svg]:shrink-0 rounded-full bg-tile hover:bg-sand text-sm font-medium inline-flex items-center justify-center gap-1.5`}
           />
         )}
         <button type="button" onClick={copyLink} aria-label={`Copy invite link for ${guest.name}`} title="Copy invite link" className={icon}>

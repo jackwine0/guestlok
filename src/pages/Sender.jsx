@@ -7,7 +7,9 @@ import { formatEventDate, whatsappLink } from "../lib/format.js";
 import { renderMessage } from "../lib/invite.js";
 import { supabase } from "../lib/supabase.js";
 import { prepareTicketPreview } from "../lib/whatsappTicket.js";
+import Segmented from "../components/Segmented.jsx";
 import WhatsAppButton from "../components/WhatsAppButton.jsx";
+import { useSwapMotion } from "../lib/tabTransition.js";
 import { useTitle } from "../lib/useTitle.js";
 
 /**
@@ -25,6 +27,7 @@ export default function Sender() {
     supabase.rpc("sender_queue", { p_token: token }).then(({ data, error }) => setData(error || !data?.event ? null : data));
   }, [token]);
 
+  const listMotion = useSwapMotion(tab === "todo" ? 0 : 1);
   const guests = useMemo(() => data?.guests ?? [], [data]);
   const todo = guests.filter((g) => !g.invite_sent_at && !g.checked_in_at);
   const done = guests.filter((g) => g.invite_sent_at || g.checked_in_at);
@@ -121,23 +124,20 @@ export default function Sender() {
         )}
 
         <section className="rounded-[28px] bg-white overflow-hidden">
-          <div role="tablist" className="grid grid-cols-2 p-1.5 m-3 rounded-full bg-tile">
-            {[
-              ["todo", `To send · ${todo.length}`],
-              ["done", `Sent · ${done.length}`],
-            ].map(([id, text]) => (
-              <button
-                key={id}
-                role="tab"
-                aria-selected={tab === id}
-                onClick={() => setTab(id)}
-                className={`h-10 rounded-full text-sm ${tab === id ? "bg-brown text-cream" : "text-brown-soft"}`}
-              >
-                {text}
-              </button>
-            ))}
+          <div className="p-3">
+            <Segmented
+              fill
+              label="Invites"
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: "todo", label: "To send", count: todo.length },
+                { value: "done", label: "Sent", count: done.length },
+              ]}
+              className="w-full"
+            />
           </div>
-          <ul className="divide-y divide-tile">
+          <ul key={tab} className={`divide-y divide-tile ${listMotion}`}>
             {(tab === "todo" ? todo : done).map((g) => (
               <li key={g.id} className="px-5 py-3.5 flex items-center gap-3">
                 <div className="min-w-0 flex-1">

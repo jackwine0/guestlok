@@ -3,6 +3,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ButtonSpinner, Wordmark } from "../components/Brand.jsx";
+import Segmented from "../components/Segmented.jsx";
+import { useSwapMotion } from "../lib/tabTransition.js";
 import { Sunburst } from "../components/HeroStage.jsx";
 import { useAuth } from "../lib/auth.jsx";
 import { supabase } from "../lib/supabase.js";
@@ -54,6 +56,7 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const copy = COPY[mode];
+  const modeMotion = useSwapMotion(mode === "signup" ? 0 : 1);
   useTitle(mode === "signup" ? "Create your account" : "Sign in");
 
   useEffect(() => {
@@ -108,7 +111,7 @@ export default function Login() {
     mode === "signup" ? fullName.trim() || "Your name" : email.split("@")[0] || "Host";
 
   return (
-    <div className="min-h-dvh grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] bg-shell">
+    <div className="min-h-dvh grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] bg-shell [overflow-x:clip]">
       {/* Brand side */}
       <aside className="relative overflow-hidden bg-brown text-cream px-5 sm:px-6 pt-5 sm:pt-6 pb-5 sm:pb-6 lg:p-10 flex flex-col max-lg:h-[190px] sm:max-lg:h-[240px]">
         <div
@@ -142,33 +145,31 @@ export default function Login() {
       {/* Form side */}
       <main className="flex items-start sm:items-center justify-center px-5 pt-6 pb-10 sm:px-10 sm:pt-10">
         <div className="w-full max-w-[420px]">
-          <div role="tablist" aria-label="Account" className="inline-flex p-1 rounded-full bg-white border border-sand">
-            {[
-              ["signup", "Create account"],
-              ["signin", "Sign in"],
-            ].map(([m, label]) => (
-              <button
-                key={m}
-                type="button"
-                role="tab"
-                aria-selected={mode === m}
-                onClick={() => switchMode(m)}
-                className={`h-10 px-5 rounded-full text-sm font-medium transition ${mode === m ? "bg-brown text-cream" : "text-brown-soft hover:text-brown"}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            tone="white"
+            label="Account"
+            value={mode}
+            onChange={switchMode}
+            options={[
+              { value: "signup", label: "Create account" },
+              { value: "signin", label: "Sign in" },
+            ]}
+            className="font-medium"
+          />
 
-          <p className="mt-7 sm:mt-10 eyebrow">{copy.eyebrow}</p>
-          <h1 className="mt-2 text-[clamp(40px,5vw,56px)] font-normal tracking-[-0.04em] leading-[0.98]">{copy.title}</h1>
-          <p className="mt-3 text-brown-soft text-[17px]">{copy.sub}</p>
+          <div key={mode} className={modeMotion}>
+            <p className="mt-7 sm:mt-10 eyebrow">{copy.eyebrow}</p>
+            <h1 className="mt-2 text-[clamp(40px,5vw,56px)] font-normal tracking-[-0.04em] leading-[0.98]">{copy.title}</h1>
+            <p className="mt-3 text-brown-soft text-[17px]">{copy.sub}</p>
+          </div>
 
           <form onSubmit={submit} className="mt-8 flex flex-col gap-3">
             {mode === "signup" && (
-              <Field icon={User} label="Your name" htmlFor="fullName">
-                <input id="fullName" required maxLength={80} autoComplete="name" placeholder="Samuel Akande" value={fullName} onChange={(e) => setFullName(e.target.value)} className="peer w-full h-14 bg-transparent pl-12 pr-4 text-[16px] outline-none placeholder:text-brown-soft/50" />
-              </Field>
+              <div className="gl-hint">
+                <Field icon={User} label="Your name" htmlFor="fullName">
+                  <input id="fullName" required maxLength={80} autoComplete="name" placeholder="Samuel Akande" value={fullName} onChange={(e) => setFullName(e.target.value)} className="peer w-full h-14 bg-transparent pl-12 pr-4 text-[16px] outline-none placeholder:text-brown-soft/50" />
+                </Field>
+              </div>
             )}
             <Field icon={Mail} label="Email" htmlFor="email">
               <input id="email" type="email" required autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="peer w-full h-14 bg-transparent pl-12 pr-4 text-[16px] outline-none placeholder:text-brown-soft/50" />

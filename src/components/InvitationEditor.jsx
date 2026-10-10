@@ -5,7 +5,9 @@ import { friendlyError } from "../lib/errors.js";
 import { useFeedback } from "../lib/feedback.js";
 import { DEFAULT_MESSAGE, MESSAGE_VARIABLES, THEMES, coverFrame, renderMessage, toInvite } from "../lib/invite.js";
 import { supabase } from "../lib/supabase.js";
+import { useSwapMotion } from "../lib/tabTransition.js";
 import { ButtonSpinner } from "./Brand.jsx";
+import Segmented from "./Segmented.jsx";
 import TicketCard from "./TicketCard.jsx";
 
 const SAMPLE_GUEST = { name: "Adaeze Okafor", admits: 2, token: "0".repeat(32), checked_in_at: null };
@@ -43,6 +45,7 @@ export default function InvitationEditor({ event, onSaved }) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [view, setView] = useState("card");
+  const previewMotion = useSwapMotion(view === "card" ? 0 : 1);
   const textRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -209,23 +212,17 @@ export default function InvitationEditor({ event, onSaved }) {
                 {canFrame ? (
                   <div className="flex flex-col gap-4">
                     <div className="flex flex-col gap-3">
-                      <div className="inline-flex self-start p-1 rounded-full bg-tile" role="radiogroup" aria-label="How the photo fits">
-                        {[
-                          ["fill", "Fill frame", Crop],
-                          ["whole", "Whole photo", Maximize],
-                        ].map(([id, label, Icon]) => (
-                          <button
-                            key={id}
-                            type="button"
-                            role="radio"
-                            aria-checked={frame.fit === id}
-                            onClick={() => setFrame((f) => ({ ...f, fit: id }))}
-                            className={`h-10 px-4 rounded-full text-sm inline-flex items-center gap-2 transition ${frame.fit === id ? "bg-brown text-cream" : "text-brown-soft hover:text-brown"}`}
-                          >
-                            <Icon size={15} aria-hidden="true" /> {label}
-                          </button>
-                        ))}
-                      </div>
+                      <Segmented
+                        role="group"
+                        label="How the photo fits"
+                        value={frame.fit}
+                        onChange={(id) => setFrame((f) => ({ ...f, fit: id }))}
+                        options={[
+                          { value: "fill", label: "Fill frame", icon: Crop },
+                          { value: "whole", label: "Whole photo", icon: Maximize },
+                        ]}
+                        className="self-start"
+                      />
                       {frame.fit === "fill" && (
                         <div className="flex items-center gap-2 w-full">
                           <button type="button" aria-label="Zoom out" onClick={() => setFrame((f) => ({ ...f, zoom: Math.max(1, +(f.zoom - 0.1).toFixed(2)) }))} className="w-10 h-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center">
@@ -354,25 +351,19 @@ export default function InvitationEditor({ event, onSaved }) {
         <aside className="rounded-[36px] bg-brown p-4 sm:p-5 flex flex-col gap-4" aria-label="Preview">
           <div className="flex items-center justify-between gap-3 px-1">
             <p className="text-cream text-[15px]">Preview</p>
-            <div className="inline-flex p-1 rounded-full bg-white/10" role="tablist" aria-label="Preview">
-              {[
-                ["card", "Invite"],
-                ["chat", "WhatsApp"],
-              ].map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={view === id}
-                  onClick={() => setView(id)}
-                  className={`h-9 px-4 rounded-full text-sm transition ${view === id ? "bg-ochre text-brown" : "text-sand hover:text-cream"}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <Segmented
+              tone="dark"
+              size="sm"
+              label="Preview"
+              value={view}
+              onChange={setView}
+              options={[
+                { value: "card", label: "Invite" },
+                { value: "chat", label: "WhatsApp" },
+              ]}
+            />
           </div>
-          <div className="rounded-[28px] overflow-hidden">
+          <div key={view} className={`rounded-[28px] overflow-hidden ${previewMotion}`}>
             {view === "card" ? (
               <div className="p-4" style={{ background: THEMES[theme].page }}>
                 <TicketCard invite={toInvite(SAMPLE_GUEST, previewEvent)} sample />
