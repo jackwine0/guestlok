@@ -2,7 +2,21 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase.js";
 
 // Fallback until the Plus migration has been run (matches its defaults).
-export const DEFAULT_PRICING = { plus_pct: 30, plus_min_guest_kobo: 3000, extra_invite_kobo: 10000, resend_pct: 10, plus_enabled: false };
+export const DEFAULT_PRICING = {
+  plus_pct: 0,
+  plus_min_guest_kobo: 2000,
+  extra_invite_kobo: 2500,
+  resend_pct: 10,
+  plus_enabled: false,
+  wa_templates: ["guestlok_invite"],
+  wa_daily_limit: 250,
+};
+
+/** "+₦20/guest" or "+30%": how Plus is priced, for badges. */
+export function plusPriceLabel(s = DEFAULT_PRICING) {
+  const pct = Math.round(Number(s.plus_pct));
+  return pct > 0 ? `+${pct}%` : `+₦${Math.round(s.plus_min_guest_kobo / 100)}/guest`;
+}
 
 /** What Plus adds to a plan, in kobo. Mirrors public.gl_plus_extra_kobo() so the app and checkout agree. */
 export function plusExtraKobo(tier, s = DEFAULT_PRICING) {

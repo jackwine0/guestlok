@@ -1,4 +1,4 @@
-import { formatEventDate, formatEventTime, inviteUrl } from "./format.js";
+import { formatEventDate, formatEventTime, inviteLink } from "./format.js";
 import { supabase } from "./supabase.js";
 
 /** Colour themes for the invite card. Keep ids in sync with the DB check constraint. */
@@ -78,7 +78,7 @@ export function renderMessage(template, { guest, event }) {
     time: formatEventTime(event.starts_at),
     venue: event.venue,
     admits: guest.admits === 1 ? "1 person" : `${guest.admits} people`,
-    link: inviteUrl(guest.token),
+    link: inviteLink(guest),
   };
   const text = (template?.trim() ? template : DEFAULT_MESSAGE).replace(/\{(\w+)\}/g, (m, key) =>
     key in values ? values[key] : m,

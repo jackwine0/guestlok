@@ -6,6 +6,8 @@ import { useFeedback } from "../lib/feedback.js";
 import { DEFAULT_MESSAGE, MESSAGE_VARIABLES, THEMES, coverFrame, renderMessage, toInvite } from "../lib/invite.js";
 import { supabase } from "../lib/supabase.js";
 import { useSwapMotion } from "../lib/tabTransition.js";
+import { usePricing } from "../lib/pricing.js";
+import { NOTE_MAX, WA_STYLES, availableStyles, waPreviewText, waStyle } from "../lib/waTemplates.js";
 import { ButtonSpinner } from "./Brand.jsx";
 import Segmented from "./Segmented.jsx";
 import TicketCard from "./TicketCard.jsx";
@@ -38,6 +40,17 @@ export default function InvitationEditor({ event, onSaved }) {
   // Framing needs migration 4; until then the controls explain why they're off.
   const canFrame = "cover_fit" in event;
 
+  // Plus: the Guestlok message style + host note (needs migration 11).
+  const plus = event.delivery === "plus";
+  const canStyle = plus && "wa_template" in event;
+  const savedStyle = event.wa_template ?? "guestlok_invite";
+  const savedNote = event.wa_note ?? "";
+  const { settings } = usePricing();
+  const styles = availableStyles(settings);
+  const [style, setStyle] = useState(savedStyle);
+  const [note, setNote] = useState(savedNote);
+  const styleSpec = waStyle(style);
+
   const [message, setMessage] = useState(savedMessage);
   const [theme, setTheme] = useState(savedTheme);
   const [frame, setFrame] = useState(savedFrame);
@@ -49,7 +62,11 @@ export default function InvitationEditor({ event, onSaved }) {
   const textRef = useRef(null);
   const fileRef = useRef(null);
 
-  const dirty = message !== savedMessage || theme !== savedTheme || (canFrame && !sameFrame(frame, savedFrame));
+  const dirty =
+    message !== savedMessage ||
+    theme !== savedTheme ||
+    (canFrame && !sameFrame(frame, savedFrame)) ||
+    (canStyle && (style !== savedStyle || note !== savedNote));
   const previewEvent = {
     ...event,
     card_theme: theme,
@@ -78,6 +95,7 @@ export default function InvitationEditor({ event, onSaved }) {
     const clean = message.trim() === DEFAULT_MESSAGE.trim() ? null : message;
     const fields = { invite_message: clean, card_theme: theme };
     if (canFrame) Object.assign(fields, { cover_fit: frame.fit, cover_position: frame.position, cover_zoom: frame.zoom });
+    if (canStyle) Object.assign(fields, { wa_template: style, wa_note: note.replace(/\s+/g, " ").trim().slice(0, NOTE_MAX) || null });
     const ok = await update(fields);
     setSaving(false);
     if (ok) toast("Invitation saved. New invites use it straight away.");
@@ -87,6 +105,8 @@ export default function InvitationEditor({ event, onSaved }) {
     setMessage(savedMessage);
     setTheme(savedTheme);
     setFrame(savedFrame);
+    setStyle(savedStyle);
+    setNote(savedNote);
   }
 
   function insertVariable(token) {
@@ -308,10 +328,63 @@ export default function InvitationEditor({ event, onSaved }) {
             </div>
           </div>
 
-          {/* 3 · Message */}
+          {/* 3 · Plus: the message Guestlok sends */}
+          {canStyle && (
+            <div className="bento flex flex-col gap-5">
+              <StepHead n={3} title="Message Guestlok sends" hint="Pick a style. WhatsApp only allows approved wording from Guestlok’s number, so you add a short note instead of writing the whole message." />
+              <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2" role="radiogroup" aria-label="Message style">
+                {styles.map((st) => {
+                  const on = style === st.id;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setStyle(st.id)}
+                      className={`text-left rounded-[20px] px-4 py-3.5 transition ${on ? "bg-brown text-cream" : "bg-tile hover:bg-sand"}`}
+                    >
+                      <span className="flex items-center justify-between gap-2 text-[16px]">
+                        {st.label}
+                        {on && <Check size={16} aria-hidden="true" />}
+                      </span>
+                      <span className={`block text-[13px] ${on ? "text-sand" : "text-brown-soft"}`}>{st.blurb}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {styles.length < WA_STYLES.length && (
+                <p className="text-xs text-brown-soft">More styles appear here once WhatsApp approves them.</p>
+              )}
+              <div>
+                <label htmlFor="wa-note" className="label">
+                  Your note <span className="font-normal text-brown-soft">(optional)</span>
+                </label>
+                <input
+                  id="wa-note"
+                  maxLength={NOTE_MAX}
+                  disabled={!styleSpec.note}
+                  placeholder={styleSpec.note ? styleSpec.defaultNote : "The Simple style has no note. Pick another style to add one."}
+                  value={styleSpec.note ? note : ""}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="field disabled:opacity-60"
+                />
+                <p className="mt-1.5 flex justify-between gap-3 text-xs text-brown-soft">
+                  <span>Dress code, gate time, colours. One line.</span>
+                  <span className="tabular-nums">{note.length}/{NOTE_MAX}</span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Message for the host's own WhatsApp */}
           <div className="bento flex flex-col gap-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <StepHead n={3} title="WhatsApp message" hint="Sent with each guest’s personal link." />
+              <StepHead
+                n={canStyle ? 4 : 3}
+                title={canStyle ? "Your own WhatsApp message" : "WhatsApp message"}
+                hint={canStyle ? "Used when you or a helper send an invite from your own phone." : "Sent with each guest’s personal link."}
+              />
               <button type="button" onClick={() => setMessage(DEFAULT_MESSAGE)} disabled={message === DEFAULT_MESSAGE} className="h-10 px-4 rounded-full bg-tile hover:bg-sand text-sm inline-flex items-center gap-1.5 disabled:opacity-40">
                 <RotateCcw size={14} aria-hidden="true" /> Reset
               </button>
@@ -364,7 +437,23 @@ export default function InvitationEditor({ event, onSaved }) {
             />
           </div>
           <div key={view} className={`rounded-[28px] overflow-hidden ${previewMotion}`}>
-            {view === "card" ? (
+            {view === "chat" && canStyle ? (
+              <div className="bg-[#E6DDD4] p-4 min-h-[420px] flex flex-col justify-end">
+                <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-white text-[#111B21] p-1.5 shadow-sm">
+                  <div className="rounded-xl overflow-hidden mb-1.5 h-[150px] flex items-center justify-center" style={{ background: THEMES[theme].page }}>
+                    <div className="w-[62%] scale-[0.55] origin-center pointer-events-none">
+                      <TicketCard invite={toInvite(SAMPLE_GUEST, previewEvent)} sample />
+                    </div>
+                  </div>
+                  <p className="px-2.5 pb-1 text-[14px] leading-relaxed whitespace-pre-line break-words">
+                    {waPreviewText(style, note, previewEvent, SAMPLE_GUEST)}
+                  </p>
+                  <p className="px-2.5 pb-1.5 text-[12px] opacity-50">Sent by Guestlok for your host</p>
+                  <div className="border-t border-black/10 py-2 text-center text-[14px] text-[#027EB5] font-medium">View my ticket</div>
+                </div>
+                <p className="mt-2 text-center text-[11px] text-brown-soft">From Guestlok’s WhatsApp · the picture is each guest’s own ticket</p>
+              </div>
+            ) : view === "card" ? (
               <div className="p-4" style={{ background: THEMES[theme].page }}>
                 <TicketCard invite={toInvite(SAMPLE_GUEST, previewEvent)} sample />
               </div>

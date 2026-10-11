@@ -27,14 +27,15 @@ Digital invitations with a single-use QR code for every guest. Only your guests 
 Plans are priced by headcount (`tiers` table). Every plan has every feature; the host only chooses who sends the invites:
 
 - **Standard:** the host sends from their own WhatsApp. Included.
-- **Plus:** Guestlok sends from the official number. Plan price **+30%** (at least ₦30 a guest), rounded up to ₦100. Includes sends for the plan size **+10%** for resends; extra sends are **₦100** each. Failed sends are given back.
+- **Plus:** Guestlok sends from the official number. **₦20 per guest of the plan** (₦2,000 / ₦6,000 / ₦10,000), rounded up to ₦100. Includes sends for the plan size **+10%** for resends; extra sends are **₦25** each. Failed sends are given back. Invites are WhatsApp *Utility* messages (about $0.0067 each in Nigeria), so that's roughly 2× cost.
 
 **Plus is switched off by default** (hidden on the site, refused at checkout) until the WhatsApp number is approved. Turn it on with `update pricing_settings set plus_enabled = true;`
 
 All of these numbers live in `public.pricing_settings` and can be changed without a deploy:
 
 ```sql
-update pricing_settings set plus_pct = 35;                 -- Plus = +35%
+update pricing_settings set plus_min_guest_kobo = 2500;     -- Plus = ₦25 a guest
+update pricing_settings set wa_daily_limit = 1000;          -- after Meta raises your number's limit
 update tiers set price_kobo = 2000000 where id = 'intimate'; -- ₦20,000 (amounts are in kobo)
 ```
 
@@ -68,6 +69,8 @@ The app (`src/lib/pricing.js`) and the database (`gl_plus_extra_kobo`) use the s
    7. `20261012000000_shared_sending.sql`
    8. `20261013000000_delete_events.sql`
    9. `20261014000000_whatsapp_ticket_preview.sql`
+   10. `20261015000000_short_links.sql`
+   11. `20261016000000_plus_templates.sql`
 3. Set your real prices (see *Pricing model*).
 4. **Auth → URL Configuration:** Site URL = your domain; add `http://localhost:5173` to Redirect URLs for local dev.
 
@@ -88,15 +91,26 @@ Paystack → Settings → API Keys & Webhooks → Webhook URL:
 
 1. **Meta app:** developers.facebook.com → Create app → *Connect with customers through WhatsApp* → *Integrate with API*. Step 1 gives a free test number (send to up to 5 numbers you verify); Step 2 adds your own number (must not be active on WhatsApp). Business verification (CAC) only raises limits: 250 recipients/day without it.
 2. **Permanent token:** Business settings → System users → add an Admin → assign the app and WhatsApp account → Generate token (never expires, permissions `whatsapp_business_messaging` and `whatsapp_business_management`).
-3. **Template** `guestlok_invite` (WhatsApp Manager → Message templates), English:
-   - Header: **Image**
-   - Body: `Hello {{1}}, you're invited to {{2}}.` / `📅 {{3}}` / `📍 {{4}}` / `Your ticket admits {{5}}. Show the QR at the gate. It works once, so please don't forward it.`
-   - Button: Visit website, dynamic URL `https://your-domain.com/i/{{1}}`, text `View my ticket`
+3. **Templates** (WhatsApp Manager → Message templates → Create). Category **Utility**, language **English**, header **Image**, footer `Sent by Guestlok for your host`, button **Visit website** → `View my ticket` → dynamic URL `https://your-domain.com/i/{{1}}`. Variables are **Number** type. Write them as transactional pass confirmations (no "you're invited", no emojis, no promotional lines) or Meta moves them to Marketing. The bodies must match exactly (the app's preview and the send function use this wording and variable order):
+
+   - `guestlok_invite` (Simple):
+     > Hello {{1}}, your entry pass for {{2}} has been issued.<br><br>Date: {{3}}<br>Venue: {{4}}<br>Admits: {{5}}<br><br>Show the QR code on your pass at the gate. It is valid for one entry only.
+   - `guestlok_invite_formal` (Formal):
+     > Dear {{1}},<br><br>Your entry pass for {{2}} has been issued.<br><br>Date: {{3}}<br>Venue: {{4}}<br><br>Message from your host: {{5}}<br><br>This pass admits {{6}}. Kindly present the QR code at the entrance. It is valid for one entry only.
+   - `guestlok_invite_warm` (Warm):
+     > Hi {{1}}, your pass for {{2}} is ready.<br><br>Date: {{3}}<br>Venue: {{4}}<br><br>Message from your host: {{5}}<br><br>Your pass admits {{6}}. Show the QR at the gate. It only works once, so keep it to yourself.
+   - `guestlok_invite_faith` (Gracious):
+     > Dear {{1}},<br><br>Your entry pass for {{2}} has been issued.<br><br>Date: {{3}}<br>Venue: {{4}}<br><br>Message from your host: {{5}}<br><br>Your pass admits {{6}}. Please show the QR code at the entrance. It is valid for one entry.
+
+   In the three styles with a note, {{5}} is the host's note (one line, up to 120 characters; a default line is used when they leave it empty). After Meta approves a template, offer it to hosts:
+   ```sql
+   update pricing_settings set wa_templates = '{guestlok_invite,guestlok_invite_formal,guestlok_invite_warm,guestlok_invite_faith}';
+   ```
 4. **Secrets and functions:**
 
 ```bash
 npx supabase secrets set WA_PHONE_NUMBER_ID=xxx WA_ACCESS_TOKEN=xxx WA_APP_SECRET=xxx WA_VERIFY_TOKEN=any-word
-# optional: WA_TEMPLATE_NAME (default guestlok_invite), WA_TEMPLATE_LANG (default en; en_GB / en_US if you chose those),
+# optional: WA_TEMPLATE_LANG (default en; en_GB / en_US if you chose those),
 #           WA_FALLBACK_IMAGE_URL (image used if a ticket image is missing), WA_GRAPH_VERSION (default v21.0)
 npx supabase functions deploy whatsapp-send
 npx supabase functions deploy whatsapp-webhook --no-verify-jwt

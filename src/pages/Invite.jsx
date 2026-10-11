@@ -31,7 +31,7 @@ export default function Invite() {
   const { toast } = useFeedback();
 
   useEffect(() => {
-    if (!/^[a-f0-9]{32}$/i.test(token)) {
+    if (!/^([a-f0-9]{32}|[a-z2-9]{10})$/i.test(token)) {
       setInvite(null);
       return;
     }

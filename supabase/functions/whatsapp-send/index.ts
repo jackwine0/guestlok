@@ -2,15 +2,19 @@
 // POST with the host's Authorization header:
 //   { event_id }                    → next batch of guests who haven't been sent one yet (or whose send failed)
 //   { event_id, guest_ids: [...] }  → these guests specifically (resend)
-// → { sent, failed, no_allowance, remaining, more }
+// → { sent, failed, no_allowance, remaining, more, daily_limit? }
+//
+// The host picks a message style (events.wa_template, one of pricing_settings.wa_templates)
+// and can add a short note (events.wa_note) that styles with a note slot include.
+// Sends stop at pricing_settings.wa_daily_limit people per 24 hours across all events,
+// because every Plus event shares Guestlok's one number and Meta caps it.
 //
 // The app uploads each guest's ticket image to storage first
 // (invite-tickets/<owner>/<event>/<token>.png); WhatsApp attaches it to the message.
 //
 // Secrets (Supabase → Edge Functions → Secrets):
 //   WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN            from Meta → WhatsApp → API setup
-//   WA_TEMPLATE_NAME   (default guestlok_invite)   the approved template's name
-//   WA_TEMPLATE_LANG   (default en)
+//   WA_TEMPLATE_LANG   (default en)               the language every template was approved in
 //   WA_GRAPH_VERSION   (default v21.0)
 import { adminClient, corsHeaders, env, json, requireUser } from '../_shared/common.ts'
 
@@ -18,6 +22,18 @@ const BATCH = 40
 const PARALLEL = 6
 
 type Guest = { id: string; name: string; phone: string | null; admits: number; token: string; wa_status: string | null }
+
+// Each approved template and the order of its {{n}} variables. Must match WhatsApp Manager exactly.
+type Slot = 'name' | 'event' | 'when' | 'venue' | 'admits' | 'note'
+const TEMPLATES: Record<string, { slots: Slot[]; defaultNote?: string }> = {
+  guestlok_invite: { slots: ['name', 'event', 'when', 'venue', 'admits'] },
+  guestlok_invite_formal: { slots: ['name', 'event', 'when', 'venue', 'note', 'admits'], defaultNote: 'We look forward to your presence.' },
+  guestlok_invite_warm: { slots: ['name', 'event', 'when', 'venue', 'note', 'admits'], defaultNote: 'We can’t wait to celebrate with you!' },
+  guestlok_invite_faith: { slots: ['name', 'event', 'when', 'venue', 'note', 'admits'], defaultNote: 'We look forward to sharing this day with you.' },
+}
+
+// WhatsApp rejects variables with new lines, tabs or more than 4 spaces in a row.
+const oneLine = (text: string, max: number) => text.replace(/[\r\n\t]+/g, ' ').replace(/ {2,}/g, ' ').trim().slice(0, max)
 
 function lagosDate(iso: string) {
   const d = new Date(iso)
@@ -54,7 +70,7 @@ Deno.serve(async (req) => {
     const db = adminClient()
     const { data: event } = await db
       .from('events')
-      .select('id, owner_id, name, host_names, starts_at, venue, status, delivery, wa_quota, wa_sent, cover_image_url')
+      .select('id, owner_id, name, host_names, starts_at, venue, status, delivery, wa_quota, wa_sent, cover_image_url, wa_template, wa_note')
       .eq('id', event_id)
       .single()
     if (!event || event.owner_id !== user.id) return json({ error: 'Event not found' }, 404)
@@ -81,6 +97,17 @@ Deno.serve(async (req) => {
     const batch = pending.slice(0, BATCH)
     const moreWaiting = !guest_ids?.length && pending.length > BATCH
 
+    // Shared daily limit for Guestlok's number.
+    const { data: settings } = await db.from('pricing_settings').select('wa_templates, wa_daily_limit').maybeSingle()
+    const dailyLimit = settings?.wa_daily_limit ?? 250
+    const { data: sentToday } = await db.rpc('gl_wa_sent_today')
+    const leftToday = Math.max(0, dailyLimit - Number(sentToday ?? 0))
+    if (batch.length > 0 && leftToday === 0) {
+      return json({ sent: 0, failed: 0, no_allowance: 0, remaining: event.wa_quota - event.wa_sent, more: false, daily_limit: true })
+    }
+    const hitDailyLimit = batch.length > leftToday
+    if (hitDailyLimit) batch.splice(leftToday)
+
     if (batch.length === 0) {
       return json({ sent: 0, failed: 0, no_allowance: 0, remaining: event.wa_quota - event.wa_sent, more: false })
     }
@@ -93,7 +120,10 @@ Deno.serve(async (req) => {
 
     const graph = `https://graph.facebook.com/${Deno.env.get('WA_GRAPH_VERSION') ?? 'v21.0'}/${env('WA_PHONE_NUMBER_ID')}/messages`
     const token = env('WA_ACCESS_TOKEN')
-    const template = Deno.env.get('WA_TEMPLATE_NAME') ?? 'guestlok_invite'
+    const approved: string[] = settings?.wa_templates ?? ['guestlok_invite']
+    const template = event.wa_template && approved.includes(event.wa_template) && TEMPLATES[event.wa_template] ? event.wa_template : 'guestlok_invite'
+    const spec = TEMPLATES[template]
+    const note = oneLine(event.wa_note ?? '', 120) || spec.defaultNote || ''
     const lang = Deno.env.get('WA_TEMPLATE_LANG') ?? 'en'
     const storageBase = `${env('SUPABASE_URL')}/storage/v1/object/public/invite-tickets/${event.owner_id}/${event.id}`
     const fallbackImage = event.cover_image_url ?? Deno.env.get('WA_FALLBACK_IMAGE_URL') ?? null
@@ -108,13 +138,17 @@ Deno.serve(async (req) => {
       const components: unknown[] = [
         {
           type: 'body',
-          parameters: [
-            { type: 'text', text: g.name.slice(0, 60) },
-            { type: 'text', text: event!.name.slice(0, 80) },
-            { type: 'text', text: when },
-            { type: 'text', text: event!.venue.slice(0, 80) },
-            { type: 'text', text: g.admits === 1 ? '1 person' : `${g.admits} people` },
-          ],
+          parameters: spec.slots.map((slot) => ({
+            type: 'text',
+            text: {
+              name: oneLine(g.name.split(' ')[0] || g.name, 60),
+              event: oneLine(event!.name, 80),
+              when,
+              venue: oneLine(event!.venue, 80),
+              admits: g.admits === 1 ? '1 person' : `${g.admits} people`,
+              note,
+            }[slot],
+          })),
         },
         { type: 'button', sub_type: 'url', index: '0', parameters: [{ type: 'text', text: g.token }] },
       ]
@@ -137,7 +171,7 @@ Deno.serve(async (req) => {
         sent++
         await db
           .from('guests')
-          .update({ wa_status: 'sent', wa_message_id: id, wa_error: null, wa_updated_at: new Date().toISOString(), invite_sent_at: new Date().toISOString() })
+          .update({ wa_status: 'sent', wa_message_id: id, wa_error: null, wa_updated_at: new Date().toISOString(), wa_sent_at: new Date().toISOString(), invite_sent_at: new Date().toISOString() })
           .eq('id', g.id)
       } catch (err) {
         failed++
@@ -163,7 +197,8 @@ Deno.serve(async (req) => {
       failed,
       no_allowance: noAllowance,
       remaining: after ? after.wa_quota - after.wa_sent : 0,
-      more: moreWaiting && noAllowance === 0 && failed < allowed.length,
+      more: moreWaiting && !hitDailyLimit && noAllowance === 0 && failed < allowed.length,
+      daily_limit: hitDailyLimit,
     })
   } catch (err) {
     console.error(err)

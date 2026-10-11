@@ -32,7 +32,7 @@ import {
 import { useAuth } from "../lib/auth.jsx";
 import { formatNaira } from "../lib/format.js";
 import { useTitle } from "../lib/useTitle.js";
-import { planPriceKobo, plusExtraKobo, plusPerGuestNaira, usePricing } from "../lib/pricing.js";
+import { planPriceKobo, plusExtraKobo, plusPerGuestNaira, plusPriceLabel, usePricing } from "../lib/pricing.js";
 
 const STEPS = [
   { title: "Create your event", body: "Date, venue and how many people you’re expecting. Pay once for that size.", time: "5 min" },
@@ -611,7 +611,7 @@ function Pricing({ tiers, settings, session }) {
     return session ? path : `/login?next=${encodeURIComponent(path)}`;
   };
   const perGuest = (t, n) => formatNaira(Math.round(price(t) / Math.max(1, n) / 100) * 100);
-  const plusPct = Math.round(Number(settings.plus_pct));
+  const plusLabel = plusPriceLabel(settings);
 
   return (
     <section id="pricing" className="scroll-mt-20 px-5 pt-2 sm:pt-6 pb-16 sm:pb-24">
@@ -688,12 +688,12 @@ function Pricing({ tiers, settings, session }) {
               >
                 <span className="sm:hidden">{SENDING[d].short}</span>
                 <span className="max-sm:hidden">{SENDING[d].label}</span>
-                {d === "plus" && <span className={`max-sm:hidden text-[11px] font-medium px-1.5 py-0.5 rounded-full ${delivery === d ? "bg-ochre text-brown" : "bg-tile"}`}>+{plusPct}%</span>}
+                {d === "plus" && <span className={`max-sm:hidden text-[11px] font-medium px-1.5 py-0.5 rounded-full ${delivery === d ? "bg-ochre text-brown" : "bg-tile"}`}>{plusLabel}</span>}
               </button>
             ))}
           </div>
           <p className="text-[15px] text-brown-soft max-w-xl" aria-live="polite">
-            {delivery === "plus" && <b className="font-medium text-brown">+{plusPct}% on any plan. </b>}
+            {delivery === "plus" && <b className="font-medium text-brown">{plusLabel} on any plan. </b>}
             {SENDING[delivery].line}
           </p>
         </div>

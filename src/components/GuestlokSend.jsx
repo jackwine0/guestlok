@@ -123,6 +123,9 @@ export default function GuestlokSend({ event, guests, only, onClose, onEventChan
             <p className="text-brown-soft max-w-sm">
               {result?.failed ? `${result.failed} didn’t go through (wrong or non-WhatsApp number). Check the number, then tap Send again on that guest. ` : ""}
               {result?.noAllowance ? `${result.noAllowance} waiting: add more sends in Settings. ` : ""}
+              {result?.dailyLimit
+                ? `${result.dailyLimit} waiting: Guestlok’s WhatsApp reached today’s sending limit. Tap Send all again tomorrow, or send those from your own WhatsApp now. `
+                : ""}
               {result?.sent ? "Delivery ticks appear on the guest list as WhatsApp confirms them." : ""}
             </p>
             <button type="button" onClick={onClose} className="btn-dark mt-2">Done</button>

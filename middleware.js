@@ -32,7 +32,7 @@ export default async function middleware(request) {
   const token = (url.pathname.split("/")[2] || "").toLowerCase();
   const supabaseUrl = (process.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
-  if (!/^[a-f0-9]{32}$/.test(token) || !supabaseUrl || !anonKey) return passThrough();
+  if (!/^([a-f0-9]{32}|[a-z2-9]{10})$/.test(token) || !supabaseUrl || !anonKey) return passThrough();
 
   try {
     const res = await fetch(`${supabaseUrl}/rest/v1/rpc/invite_preview`, {

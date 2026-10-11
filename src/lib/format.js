@@ -61,6 +61,16 @@ export function inviteUrl(token) {
   return `${SITE_URL || window.location.origin}/i/${token}`;
 }
 
+/** The link that goes in messages: the short code when the guest has one. */
+export function inviteLink(guest) {
+  return inviteUrl(guest.code || guest.token);
+}
+
+/** The live site's address without https://, for short texts. */
+export function siteHost() {
+  return (SITE_URL || window.location.origin).replace(/^https?:\/\//, "");
+}
+
 export function scannerUrl(eventId, key) {
   return `${window.location.origin}/scan/${eventId}?k=${key}`;
 }

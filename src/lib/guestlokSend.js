@@ -26,12 +26,13 @@ async function uploadTicket(event, guest) {
 /**
  * Makes each guest's ticket image, then asks the whatsapp-send function to deliver them, in chunks.
  * onProgress({ phase: 'preparing' | 'sending', done, total, sent, failed })
- * Returns { sent, failed, noAllowance, remaining }.
+ * Returns { sent, failed, noAllowance, remaining, dailyLimit } — dailyLimit = how many are waiting
+ * because Guestlok's number reached its 24-hour limit.
  */
 export async function guestlokSend(event, guests, onProgress = () => {}, shouldStop = () => false) {
   const total = guests.length;
   let prepared = 0;
-  const totals = { sent: 0, failed: 0, noAllowance: 0, remaining: null };
+  const totals = { sent: 0, failed: 0, noAllowance: 0, remaining: null, dailyLimit: 0 };
 
   for (let i = 0; i < guests.length; i += CHUNK) {
     if (shouldStop()) break;
@@ -60,6 +61,12 @@ export async function guestlokSend(event, guests, onProgress = () => {}, shouldS
     totals.noAllowance += data.no_allowance ?? 0;
     totals.remaining = data.remaining ?? totals.remaining;
     onProgress({ phase: "sending", done: totals.sent + totals.failed + totals.noAllowance, total, ...totals });
+    if (data.daily_limit) {
+      // Guestlok's number is at today's limit: everyone not yet sent waits for tomorrow.
+      const processed = totals.sent + totals.failed + totals.noAllowance;
+      totals.dailyLimit = Math.max(0, guests.length - processed);
+      break;
+    }
     if ((data.no_allowance ?? 0) > 0) {
       // Out of sends: the rest would be refused too.
       totals.noAllowance += Math.max(0, guests.length - (i + CHUNK));

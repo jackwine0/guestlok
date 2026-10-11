@@ -119,6 +119,7 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
               <button type="button" onClick={() => setIndex((i) => i + 1)} className="btn text-brown-soft hover:text-brown">
                 Skip <ChevronRight size={16} aria-hidden="true" />
               </button>
+
             </div>
 
             <p className="text-xs text-brown-soft">
@@ -158,3 +159,4 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
     </Modal>
   );
 }
+

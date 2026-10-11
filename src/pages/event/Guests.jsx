@@ -13,7 +13,7 @@ import WhatsAppButton from "../../components/WhatsAppButton.jsx";
 import { useSwapMotion } from "../../lib/tabTransition.js";
 import { prepareTicketPreview } from "../../lib/whatsappTicket.js";
 import { friendlyError } from "../../lib/errors.js";
-import { formatEventTime, inviteUrl, normalizePhone, whatsappLink } from "../../lib/format.js";
+import { formatEventTime, inviteLink, normalizePhone, whatsappLink } from "../../lib/format.js";
 import { downloadAttendance } from "../../lib/attendance.js";
 import { useFeedback } from "../../lib/feedback.js";
 import { plusTargets } from "../../lib/guestlokSend.js";
@@ -445,7 +445,7 @@ function GuestRow({ guest, event, locked, onToast, onGuestlokSend }) {
   }
 
   async function copyLink() {
-    await navigator.clipboard.writeText(inviteUrl(guest.token));
+    await navigator.clipboard.writeText(inviteLink(guest));
     onToast("Invite link copied");
   }
 
