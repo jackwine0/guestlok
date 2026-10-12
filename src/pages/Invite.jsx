@@ -23,7 +23,9 @@ const IS_IOS =
   (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 
 export default function Invite() {
-  const { token = "" } = useParams();
+  const { token: rawToken = "" } = useParams();
+  // Tolerate a stray "{{1}}" left in a WhatsApp button URL.
+  const token = rawToken.replace(/^(\{\{\d\}\}|%7B%7B\d%7D%7D)+/i, "");
   const [invite, setInvite] = useState(undefined);
   const [busy, setBusy] = useState(null); // 'png' | 'pdf' | null
   const [error, setError] = useState(null);

@@ -29,7 +29,7 @@ export default async function middleware(request) {
   if (!BOTS.test(request.headers.get("user-agent") || "")) return passThrough();
 
   const url = new URL(request.url);
-  const token = (url.pathname.split("/")[2] || "").toLowerCase();
+  const token = (url.pathname.split("/")[2] || "").replace(/^(%7B%7B\d%7D%7D|\{\{\d\}\})+/i, "").toLowerCase();
   const supabaseUrl = (process.env.VITE_SUPABASE_URL || "").replace(/\/$/, "");
   const anonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
   if (!/^([a-f0-9]{32}|[a-z2-9]{10})$/.test(token) || !supabaseUrl || !anonKey) return passThrough();
