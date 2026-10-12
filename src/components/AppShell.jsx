@@ -1,10 +1,11 @@
 import { LogOut } from "lucide-react";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth.jsx";
 import { useFeedback } from "../lib/feedback.js";
 import { supabase } from "../lib/supabase.js";
-import { Loader, Wordmark } from "./Brand.jsx";
+import { preloadAppPages } from "../pages/appPages.js";
+import { Wordmark } from "./Brand.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 
 /** Signed-in layout: warm grey canvas, white bento cards, pill controls. */
@@ -12,6 +13,7 @@ export default function AppShell() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  useEffect(preloadAppPages, []);
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -51,7 +53,7 @@ export default function AppShell() {
       </header>
       <main className="flex-1 mx-auto w-full max-w-[1440px] px-4 sm:px-7 pt-2 pb-12 [overflow-x:clip]">
         <ErrorBoundary compact resetKey={pathname}>
-          <Suspense fallback={<Loader />}>
+          <Suspense fallback={<PageSkeleton />}>
             <Outlet />
           </Suspense>
         </ErrorBoundary>
@@ -92,5 +94,18 @@ function NameBadge({ user }) {
       <span className="hidden sm:inline text-[15px] truncate max-w-[140px]">{fullName.split(" ")[0]}</span>
       <span className="sr-only sm:hidden">{fullName}</span>
     </span>
+  );
+}
+
+/** While a page's code arrives: quiet placeholder cards instead of a big loading screen. */
+function PageSkeleton() {
+  return (
+    <div role="status" aria-label="Loading" className="flex flex-col gap-[18px] animate-pulse motion-reduce:animate-none">
+      <div className="h-10 w-56 rounded-full bg-white/80" />
+      <div className="grid gap-[18px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="h-[420px] rounded-[36px] bg-white/80" />
+        <div className="max-lg:hidden h-[320px] rounded-[36px] bg-white/60" />
+      </div>
+    </div>
   );
 }

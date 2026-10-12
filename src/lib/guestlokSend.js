@@ -1,12 +1,13 @@
+import { needsInvite } from "./guestStatus.js";
 import { toInvite } from "./invite.js";
 import { supabase } from "./supabase.js";
 import { dataUrlToBlob, renderTicketPng } from "./ticketExport.jsx";
 
 const CHUNK = 40;
 
-/** Guests a Plus "Send all" goes to: has a phone, not at the gate yet, never sent (or the last send failed). */
+/** Guests a Plus "Send all" goes to: the ones still without their invite (see guestStatus.js). */
 export function plusTargets(guests) {
-  return guests.filter((g) => g.phone && !g.checked_in_at && (!g.wa_status || g.wa_status === "failed"));
+  return guests.filter(needsInvite);
 }
 
 /** Where WhatsApp fetches this guest's ticket image from. Must match the whatsapp-send function. */

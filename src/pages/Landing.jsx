@@ -31,13 +31,14 @@ import {
 } from "../components/Brand.jsx";
 import { useAuth } from "../lib/auth.jsx";
 import { formatNaira } from "../lib/format.js";
+import WhatYouGet from "../components/WhatYouGet.jsx";
 import { useTitle } from "../lib/useTitle.js";
 import { planPriceKobo, plusExtraKobo, plusPerGuestNaira, plusPriceLabel, usePricing } from "../lib/pricing.js";
 
 const STEPS = [
   { title: "Create your event", body: "Date, venue and how many people you’re expecting. Pay once for that size.", time: "5 min" },
   { title: "Add your guests", body: "Type names or upload your list. Set plus-ones and sides.", time: "10 min" },
-  { title: "Send on WhatsApp", body: "Every guest gets their own invite with a personal QR. No app needed.", time: "1 tap each" },
+  { title: "Send on WhatsApp", body: "Every guest gets their own invite with a personal QR, from your WhatsApp in one tap each. No app needed.", plus: " Or let Guestlok send them all at once with Plus.", time: "1 tap each" },
   { title: "Scan at the gate", body: "Ushers scan with any phone. Each code works once. You watch arrivals live.", time: "½ second" },
 ];
 
@@ -97,7 +98,7 @@ const FAQ = [
   },
   {
     q: "How much does it cost, and how do I pay?",
-    a: "One payment per event, based on how many people you’re expecting. Every feature is included. Pay with card, bank transfer or USSD through Paystack. No subscriptions.",
+    a: "One payment per event, based on how many people you’re expecting. That one payment gets you everything: personal QR invites, your own design, WhatsApp sending, the gate scanner for your ushers, Ask the host and live arrivals. Bigger plans only let you invite more people. Pay with card, bank transfer or USSD through Paystack. No subscriptions.",
   },
   {
     q: "Do I have to send 300 invites myself?",
@@ -256,7 +257,10 @@ export default function Landing() {
                   <span className={`w-11 h-11 sm:w-12 sm:h-12 shrink-0 rounded-full flex items-center justify-center text-lg font-semibold ${last ? "bg-ochre text-brown" : "bg-ochre"}`}>{i + 1}</span>
                   <div className="flex flex-col gap-2 sm:gap-3 min-w-0">
                     <h3 className="text-[20px] sm:text-[22px] font-medium tracking-[-0.03em] leading-tight">{st.title}</h3>
-                    <p className={`leading-relaxed ${last ? "text-sand" : "text-brown-soft"}`}>{st.body}</p>
+                    <p className={`leading-relaxed ${last ? "text-sand" : "text-brown-soft"}`}>
+                      {st.body}
+                      {settings.plus_enabled && st.plus}
+                    </p>
                     <span className={`self-start mt-1 h-7 px-3 rounded-full text-[13px] inline-flex items-center gap-1.5 ${last ? "bg-white/10" : "bg-tile"}`}>
                       <Clock size={13} aria-hidden="true" /> {st.time}
                     </span>
@@ -372,7 +376,7 @@ export default function Landing() {
       <Pricing tiers={tiers} settings={settings} session={session} />
 
       {/* ---------------- FAQ ---------------- */}
-      <Faq />
+      <Faq plusEnabled={settings.plus_enabled} plusLabel={plusPriceLabel(settings)} />
 
       {/* ---------------- FINAL CTA ---------------- */}
       <section className="px-5 pt-16 sm:pt-24 pb-20 sm:pb-28">
@@ -537,7 +541,17 @@ function CrowdCard({ dark, title, big, bigNote, invited, extra, seen, footer }) 
 }
 
 /** Questions: two columns on desktop, help card on the left. */
-function Faq() {
+function Faq({ plusEnabled, plusLabel }) {
+  const list = plusEnabled
+    ? [
+        ...FAQ.slice(0, 7),
+        {
+          q: "What is Plus?",
+          a: `Plus is every feature, and Guestlok also sends your invites for you. One tap sends them all from the official Guestlok WhatsApp, with the ticket picture and a “View my ticket” button, and you see who has received and read theirs. It costs ${plusLabel} on any plan, and you can still send any invite from your own phone.`,
+        },
+        ...FAQ.slice(7),
+      ]
+    : FAQ;
   return (
     <section id="faq" className="scroll-mt-20 bg-white rounded-[36px] sm:rounded-[48px] px-5 py-16 sm:py-24">
       <div className="mx-auto max-w-6xl grid gap-8 lg:gap-16 grid-cols-1 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] items-start">
@@ -555,7 +569,7 @@ function Faq() {
         </div>
 
         <div className="flex flex-col gap-2.5">
-          {FAQ.map((f, i) => (
+          {list.map((f, i) => (
             <details key={f.q} open={i === 0} className="group rounded-[22px] sm:rounded-[26px] bg-paper open:bg-cream/60 transition-colors">
               <summary className="flex items-center justify-between gap-4 cursor-pointer list-none px-5 sm:px-6 py-4 sm:py-5 text-[17px] sm:text-[19px] font-medium tracking-[-0.01em] [&::-webkit-details-marker]:hidden">
                 {f.q}
@@ -582,18 +596,10 @@ function Faq() {
   );
 }
 
-const PLAN_INCLUDES = [
-  "Personal QR invite for every guest",
-  "Your photo, colours and message",
-  "Gate scanner for all your ushers",
-  "Name lookup and “Ask the host”",
-  "Live dashboard and attendance download",
-  "Share the sending with family or your planner",
-];
 
 const SENDING = {
   self: { label: "I’ll send them", short: "I send", line: "You send each invite from your own WhatsApp, one tap per guest. Included in every plan." },
-  plus: { label: "Guestlok sends them", short: "Guestlok sends", line: "We send every invite at once from the official Guestlok WhatsApp, ticket attached, with Sent · Delivered · Read for each guest." },
+  plus: { label: "Guestlok sends them", short: "Guestlok sends", line: "Everything in the plan, and we send every invite at once from the official Guestlok WhatsApp, with the ticket picture and Sent · Delivered · Read for each guest." },
 };
 
 /** Pricing: pick a headcount and who sends the invites; we point at the right plan and show the cost per guest. */
@@ -748,17 +754,11 @@ function Pricing({ tiers, settings, session }) {
         {/* What every plan includes + bigger events */}
         <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="rounded-[24px] sm:rounded-[28px] bg-white p-5 sm:p-7">
-            <p className="text-sm text-brown-soft">Every plan includes</p>
-            <ul className="mt-4 grid gap-x-6 gap-y-3 grid-cols-1 sm:grid-cols-2">
-              {PLAN_INCLUDES.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-[15px]">
-                  <span className="mt-0.5 w-5 h-5 shrink-0 rounded-full bg-ochre inline-flex items-center justify-center">
-                    <Check size={12} strokeWidth={3} aria-hidden="true" />
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <p className="text-[17px] tracking-[-0.01em]">{delivery === "plus" ? "Included with Plus" : "Included in every plan"}</p>
+            <p className="mt-1 text-sm text-brown-soft">
+              A bigger plan only lets you invite more people. <a href="#features" className="underline underline-offset-4 decoration-brown/30 hover:decoration-brown">See what each feature does</a>
+            </p>
+            <WhatYouGet delivery={delivery} columns={2} compact className="mt-5" />
           </div>
           <a
             href="mailto:hello@guestlok.com?subject=Big%20event"

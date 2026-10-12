@@ -1,7 +1,7 @@
-import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock, Lock, MapPin, Pencil, Send, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, Clock, Lock, MapPin, Pencil, Send, ShieldCheck, Users } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader } from "../components/Brand.jsx";
+import { ButtonSpinner } from "../components/Brand.jsx";
 import DeliveryPicker from "../components/DeliveryPicker.jsx";
 import FlowSteps from "../components/FlowSteps.jsx";
 import TicketCard from "../components/TicketCard.jsx";
@@ -9,8 +9,8 @@ import { friendlyError, functionError } from "../lib/errors.js";
 import { useFeedback } from "../lib/feedback.js";
 import { formatEventDate, formatEventTime, formatNaira } from "../lib/format.js";
 import { toInvite } from "../lib/invite.js";
-import { unlocks } from "../lib/plans.js";
-import { DELIVERY, planPriceKobo, usePricing } from "../lib/pricing.js";
+import WhatYouGet from "../components/WhatYouGet.jsx";
+import { DELIVERY, planPriceKobo, plusQuota, usePricing } from "../lib/pricing.js";
 import { supabase } from "../lib/supabase.js";
 import { useTitle } from "../lib/useTitle.js";
 
@@ -45,7 +45,7 @@ function loadDraft() {
 export default function NewEvent() {
   const navigate = useNavigate();
   const { toast } = useFeedback();
-  const { tiers, settings } = usePricing();
+  const { tiers, settings, loaded } = usePricing();
   const [form, setForm] = useState(loadDraft);
   const [step, setStep] = useState(0);
   const [phase, setPhase] = useState(null); // 'creating' | 'paying'
@@ -148,17 +148,6 @@ export default function NewEvent() {
     },
   );
 
-  if (phase) {
-    return (
-      <div className="min-h-[60dvh] flex flex-col items-center justify-center gap-3 text-center">
-        <Loader label={phase === "creating" ? "Saving your event" : "Opening Paystack"} />
-        <p className="text-brown-soft max-w-sm">
-          {phase === "paying" ? "You’ll come straight back here after paying. Don’t close this tab." : "One moment…"}
-        </p>
-      </div>
-    );
-  }
-
   const today = new Date().toISOString().slice(0, 10);
 
   return (
@@ -170,7 +159,7 @@ export default function NewEvent() {
           {/* ---------------- Step 1: details ---------------- */}
           {step === 0 && (
             <form onSubmit={nextFromDetails} className="bento flex flex-col gap-7">
-              <Header kicker="Step 1 of 3" title="Tell us about your event" sub="This is what your guests see on their invite. You can change it later." />
+              <Header kicker="Step 1 of 4" title="Tell us about your event" sub="This is what your guests see on their invite. You can change it later." />
 
               <div>
                 <p className="label">What’s the occasion?</p>
@@ -247,7 +236,7 @@ export default function NewEvent() {
               }}
               className="bento flex flex-col gap-7"
             >
-              <Header kicker="Step 2 of 3" title="How many people are you expecting?" sub="Count everyone, plus-ones included. We’ll suggest the right plan." />
+              <Header kicker="Step 2 of 4" title="How many people are you expecting?" sub="Count everyone, plus-ones included. The plan is priced by size, and we’ll suggest the one that fits." />
 
               <div className="rounded-[26px] bg-tile p-5 sm:p-6">
                 <div className="flex items-end justify-between gap-4">
@@ -282,8 +271,16 @@ export default function NewEvent() {
               </div>
 
               <fieldset>
-                <legend className="label">Choose a plan</legend>
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+                <legend className="label">Your plan</legend>
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-3" aria-busy={!loaded}>
+                  {!loaded &&
+                    [0, 1, 2].map((i) => (
+                      <div key={i} className="rounded-[26px] bg-tile p-5 h-[150px] flex flex-col gap-3 animate-pulse motion-reduce:animate-none" aria-hidden="true">
+                        <span className="h-5 w-24 rounded-full bg-white" />
+                        <span className="h-4 w-32 rounded-full bg-white/70" />
+                        <span className="mt-auto h-8 w-28 rounded-full bg-white" />
+                      </div>
+                    ))}
                   {tiers.map((t) => {
                     const selected = tier?.id === t.id;
                     const isRec = recommended?.id === t.id;
@@ -313,21 +310,31 @@ export default function NewEvent() {
                     {form.expected > maxTier ? " For bigger events, email hello@guestlok.com." : " Pick a bigger plan so nobody is turned away."}
                   </p>
                 )}
-                <p className="mt-3 text-sm text-brown-soft">Every plan has the same features. Only the headcount changes.</p>
+                <details className="group mt-3 rounded-[22px] bg-tile">
+                  <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer px-5 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 text-sm">
+                    <span>
+                      <b className="font-medium">Every plan has every feature.</b> A bigger plan only lets you invite more people.
+                    </span>
+                    <span className="shrink-0 font-medium underline underline-offset-4 decoration-brown/30 group-open:hidden">See what’s included</span>
+                    <span className="shrink-0 font-medium underline underline-offset-4 decoration-brown/30 hidden group-open:inline">Hide</span>
+                  </summary>
+                  <WhatYouGet columns={2} className="px-5 pb-5 pt-1" />
+                </details>
               </fieldset>
 
               {settings.plus_enabled && (
                 <DeliveryPicker tier={tier} settings={settings} value={delivery} onChange={(d) => setForm((f) => ({ ...f, delivery: d }))} />
               )}
 
-              <Nav onBack={() => go(0)} nextLabel="Review" disabled={!tier} />
+
+              <Nav onBack={() => go(0)} nextLabel={loaded ? "Review" : "Loading plans…"} disabled={!tier} />
             </form>
           )}
 
           {/* ---------------- Step 3: review & pay ---------------- */}
           {step === 2 && tier && (
             <div className="bento flex flex-col gap-7">
-              <Header kicker="Step 3 of 3" title="Check and pay" sub="One payment for this event. Then you’ll design the invite and add guests." />
+              <Header kicker="Step 3 of 4" title="Check and pay" sub="One payment for this event. Next you’ll design the invite, add your guests and send." />
 
               <div className="rounded-[26px] bg-tile divide-y divide-white">
                 <Summary icon={Pencil} label="Event" value={form.name.trim()} sub={form.hostNames.trim() ? `Hosted by ${form.hostNames.trim()}` : null} onEdit={() => go(0)} />
@@ -335,21 +342,29 @@ export default function NewEvent() {
                 <Summary icon={Clock} label="Time" value={startsAt ? `${formatEventTime(startsAt)} (Lagos)` : "—"} onEdit={() => go(0)} />
                 <Summary icon={MapPin} label="Venue" value={form.venue.trim()} onEdit={() => go(0)} />
                 <Summary icon={Users} label="Plan" value={`${tier.name} · up to ${tier.max_headcount.toLocaleString()} people`} onEdit={() => go(1)} />
-                {settings.plus_enabled && <Summary icon={Send} label="Invites" value={`${DELIVERY[delivery].name}: ${DELIVERY[delivery].short}`} sub={DELIVERY[delivery].line} onEdit={() => go(1)} />}
+                {settings.plus_enabled && <Summary icon={Send} label="Who sends the invites" value={delivery === "plus" ? "Guestlok sends them (Plus)" : "You send them (included)"} sub={DELIVERY[delivery].line} onEdit={() => go(1)} />}
               </div>
 
               {error && <ErrorNote>{error}</ErrorNote>}
 
               <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
-                <button type="button" onClick={() => go(1)} className="btn bg-tile hover:bg-sand">
+                <button type="button" onClick={() => go(1)} disabled={!!phase} className="btn bg-tile hover:bg-sand disabled:opacity-50">
                   <ArrowLeft size={17} aria-hidden="true" /> Back
                 </button>
-                <button type="button" onClick={createAndPay} className="h-[56px] px-7 rounded-full bg-brown text-cream text-[16px] inline-flex items-center justify-center gap-2 hover:bg-black transition">
-                  <Lock size={17} aria-hidden="true" /> Pay {formatNaira(total)} with Paystack
+                <button
+                  type="button"
+                  onClick={createAndPay}
+                  disabled={!!phase}
+                  aria-busy={!!phase}
+                  className="h-[56px] px-7 rounded-full bg-brown text-cream text-[16px] inline-flex items-center justify-center gap-2 hover:bg-black transition disabled:cursor-progress disabled:hover:bg-brown"
+                >
+                  {phase ? <ButtonSpinner /> : <Lock size={17} aria-hidden="true" />}
+                  {phase === "creating" ? "Saving your event…" : phase === "paying" ? "Opening Paystack…" : `Pay ${formatNaira(total)} with Paystack`}
                 </button>
               </div>
               <p className="-mt-3 flex items-center gap-2 text-sm text-brown-soft sm:justify-end">
-                <ShieldCheck size={16} aria-hidden="true" /> Card, bank transfer or USSD. Secured by Paystack.
+                <ShieldCheck size={16} aria-hidden="true" />
+                {phase === "paying" ? "You’ll come straight back here after paying. Don’t close this tab." : "Card, bank transfer or USSD. Secured by Paystack."}
               </p>
             </div>
           )}
@@ -365,21 +380,20 @@ export default function NewEvent() {
                 {tier.name}
                 {delivery === "plus" ? " Plus" : ""} · one-off
               </p>
-              {delivery === "plus" && (
-                <p className="mt-3 text-sm text-sand tabular-nums">
-                  {formatNaira(tier.price_kobo)} plan + {formatNaira(total - tier.price_kobo)} Guestlok sends
-                </p>
-              )}
-              <ul className="mt-6 flex flex-col gap-2.5">
-                {unlocks(delivery).map((u) => (
-                  <li key={u} className="flex items-start gap-3 text-[15px]">
-                    <span className="mt-0.5 w-5 h-5 shrink-0 rounded-full bg-ochre text-brown inline-flex items-center justify-center">
-                      <Check size={12} strokeWidth={3} aria-hidden="true" />
-                    </span>
-                    {u}
-                  </li>
-                ))}
-              </ul>
+              <dl className="mt-5 pt-5 border-t border-white/10 grid gap-2 text-[15px] tabular-nums">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-sand">{tier.name} plan · up to {tier.max_headcount.toLocaleString()} people</dt>
+                  <dd>{formatNaira(tier.price_kobo)}</dd>
+                </div>
+                {delivery === "plus" && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-sand">Plus · {plusQuota(tier.max_headcount, settings).toLocaleString()} Guestlok sends</dt>
+                    <dd>{formatNaira(total - tier.price_kobo)}</dd>
+                  </div>
+                )}
+              </dl>
+              <p className="mt-6 text-sm text-sand">Included</p>
+              <WhatYouGet delivery={delivery} tone="dark" compact className="mt-3" />
             </div>
           ) : null}
           <div className={`rounded-[36px] bg-ochre p-4 ${step === 2 ? "" : "max-lg:hidden"}`}>

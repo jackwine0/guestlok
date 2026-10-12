@@ -5,7 +5,7 @@ import { createElement, lazy, useState } from "react";
  * downloaded, which flashes the "Loading" fallback. This wrapper renders the
  * real component directly once preload() has finished.
  */
-function lazyWithPreload(factory) {
+export function lazyWithPreload(factory) {
   let Loaded = null;
   let pending = null;
   const load = () => {

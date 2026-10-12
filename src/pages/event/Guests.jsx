@@ -1,4 +1,4 @@
-import { Download, Link2, MessageCircle, Minus, Plus, RotateCcw, Search, Send, Share2, Trash2, Upload, UserPlus, Users } from "lucide-react";
+import { ArrowRight, Download, Link2, MessageCircle, Minus, MoreHorizontal, Plus, RotateCcw, Search, Send, Share2, Smartphone, Trash2, Upload, UserPlus, Users } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { ButtonSpinner } from "../../components/Brand.jsx";
@@ -13,10 +13,11 @@ import WhatsAppButton from "../../components/WhatsAppButton.jsx";
 import { useSwapMotion } from "../../lib/tabTransition.js";
 import { prepareTicketPreview } from "../../lib/whatsappTicket.js";
 import { friendlyError } from "../../lib/errors.js";
-import { formatEventTime, inviteLink, normalizePhone, whatsappLink } from "../../lib/format.js";
+import { inviteLink, normalizePhone, whatsappLink } from "../../lib/format.js";
 import { downloadAttendance } from "../../lib/attendance.js";
 import { useFeedback } from "../../lib/feedback.js";
-import { plusTargets } from "../../lib/guestlokSend.js";
+import { hasInvite, inviteDetail, inviteStatus, needsInvite } from "../../lib/guestStatus.js";
+import { canShareFiles } from "../../lib/ticketExport.jsx";
 import { markInviteSent, renderMessage } from "../../lib/invite.js";
 import { supabase } from "../../lib/supabase.js";
 
@@ -25,13 +26,14 @@ const FILTERS = [
   ["all", "All"],
   ["expected", "Not arrived"],
   ["arrived", "Arrived"],
-  ["unsent", "Not sent"],
+  ["unsent", "To send"],
 ];
 
 export default function Guests() {
   const { event, setEvent, guests, reloadGuests: reload } = useOutletContext();
   const plus = event.delivery === "plus";
-  const [sendOnly, setSendOnly] = useState(null); // Plus: resend to one guest
+  const [sendOnly, setSendOnly] = useState(null); // Plus: Guestlok sends to one guest
+  const [sheetId, setSheetId] = useState(null); // the guest whose sheet (⋯) is open
   const [sharing, setSharing] = useState(false);
   const [params, setParams] = useSearchParams();
   const [panel, setPanel] = useState(null); // 'add' | 'import' | null
@@ -40,10 +42,12 @@ export default function Guests() {
   const [sideFilter, setSideFilter] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const [sending, setSending] = useState(() => params.get("send") === "1");
+  const [mode, setMode] = useState(null); // Plus: 'guestlok' | 'phone', picked when they tap Send all
   const { toast } = useFeedback();
 
   function closeQueue() {
     setSending(false);
+    setMode(null);
     if (params.has("send")) {
       params.delete("send");
       setParams(params, { replace: true });
@@ -53,7 +57,7 @@ export default function Guests() {
   const locked = event.status !== "active";
   const people = guests.reduce((s, g) => s + g.admits, 0);
   const arrived = guests.filter((g) => g.checked_in_at).reduce((s, g) => s + g.admits, 0);
-  const unsent = plus ? plusTargets(guests).length : guests.filter((g) => g.phone && !g.invite_sent_at && !g.checked_in_at).length;
+  const unsent = guests.filter(needsInvite).length;
   const noPhone = guests.filter((g) => !g.phone).length;
   const left = Math.max(0, event.headcount - people);
   const sides = useMemo(() => [...new Set(guests.map((g) => g.side?.trim()).filter(Boolean))].sort(), [guests]);
@@ -63,7 +67,7 @@ export default function Guests() {
       all: guests.length,
       expected: guests.filter((g) => !g.checked_in_at).length,
       arrived: guests.filter((g) => g.checked_in_at).length,
-      unsent: guests.filter((g) => !g.invite_sent_at).length,
+      unsent: guests.filter(needsInvite).length,
     }),
     [guests],
   );
@@ -76,7 +80,7 @@ export default function Guests() {
       if (sideFilter && g.side !== sideFilter) return false;
       if (filter === "arrived") return !!g.checked_in_at;
       if (filter === "expected") return !g.checked_in_at;
-      if (filter === "unsent") return !g.invite_sent_at;
+      if (filter === "unsent") return needsInvite(g);
       return true;
     });
   }, [guests, query, filter, sideFilter]);
@@ -91,10 +95,10 @@ export default function Guests() {
       : {
           label: "Invites to send",
           value: unsent,
-          sub: unsent ? (plus ? "tap Send all and Guestlok sends them" : "tap Send all to go through them") : "everyone with a number has theirs",
+          sub: unsent ? (plus ? "tap Send all and choose who sends" : "tap Send all to go through them") : "everyone with a number has theirs",
           tone: unsent ? "ochre" : null,
         },
-    { label: "No phone", value: noPhone, sub: noPhone ? "use their ticket or link instead" : "all guests have a number" },
+    { label: "No phone", value: noPhone, sub: noPhone ? "share their ticket yourself from ⋯" : "all guests have a number" },
   ];
 
   return (
@@ -128,7 +132,7 @@ export default function Guests() {
                 <Download size={18} aria-hidden="true" />
               </button>
             )}
-            {guests.length > 0 && !plus && (
+            {guests.length > 0 && (
               <button
                 type="button"
                 onClick={() => setSharing(true)}
@@ -139,7 +143,7 @@ export default function Guests() {
               </button>
             )}
             {guests.length > 0 && (
-              <button type="button" onClick={() => setSending(true)} className={`${plus ? "col-span-2" : ""} md:ml-auto xl:ml-0 h-[52px] px-3 sm:px-5 rounded-full bg-ochre font-medium inline-flex items-center justify-center gap-2 hover:-translate-y-px transition`}>
+              <button type="button" onClick={() => setSending(true)} className={`md:ml-auto xl:ml-0 h-[52px] px-3 sm:px-5 rounded-full bg-ochre font-medium inline-flex items-center justify-center gap-2 hover:-translate-y-px transition`}>
                 <Send size={18} aria-hidden="true" /> Send all{unsent > 0 ? ` (${unsent})` : ""}
               </button>
             )}
@@ -147,7 +151,15 @@ export default function Guests() {
         )}
       </div>
 
-      {sending && !plus && (
+      {sending && plus && !mode && (
+        <SendChooser
+          event={event}
+          unsent={unsent}
+          onPick={setMode}
+          onClose={closeQueue}
+        />
+      )}
+      {sending && (!plus || mode === "phone") && (
         <SendQueue
           event={event}
           guests={guests}
@@ -159,7 +171,7 @@ export default function Guests() {
         />
       )}
       {sharing && <ShareSending event={event} guests={guests} onClose={() => setSharing(false)} />}
-      {(sending && plus) || sendOnly ? (
+      {(sending && plus && mode === "guestlok") || sendOnly ? (
         <GuestlokSend
           event={event}
           guests={guests}
@@ -259,15 +271,15 @@ export default function Guests() {
         ) : (
           <>
             {/* Column labels (desktop only) */}
-            <div className="hidden lg:grid grid-cols-[minmax(0,1.6fr)_72px_minmax(0,1fr)_372px] gap-4 px-6 py-3 text-[13px] text-mute border-b border-tile">
+            <div className="hidden lg:grid grid-cols-[minmax(0,1.6fr)_72px_minmax(0,1fr)_206px] gap-4 px-6 py-3 text-[13px] text-mute border-b border-tile">
               <span>Guest</span>
               <span>Admits</span>
               <span>Status</span>
-              <span className="text-right pr-1">Actions</span>
+              <span className="text-right pr-1">Invite</span>
             </div>
             <ul key={filter} className={`divide-y divide-tile ${listMotion}`}>
               {shown.slice(0, limit).map((g) => (
-                <GuestRow key={g.id} guest={g} event={event} locked={locked} onToast={flash} onGuestlokSend={plus ? setSendOnly : null} />
+                <GuestRow key={g.id} guest={g} event={event} locked={locked} plus={plus} onGuestlokSend={setSendOnly} onMore={setSheetId} onToast={flash} />
               ))}
             </ul>
             {shown.length > limit && (
@@ -280,6 +292,18 @@ export default function Guests() {
           </>
         )}
       </div>
+
+      {sheetId && guests.some((g) => g.id === sheetId) && (
+        <GuestSheet
+          guest={guests.find((g) => g.id === sheetId)}
+          event={event}
+          locked={locked}
+          plus={plus}
+          onGuestlokSend={setSendOnly}
+          onToast={flash}
+          onClose={() => setSheetId(null)}
+        />
+      )}
 
       <Modal open={!locked && panel === "add"} onClose={() => setPanel(null)} title="Add a guest" description={`${left} of ${event.headcount} spaces left on your plan.`}>
         <AddGuest
@@ -427,72 +451,33 @@ function AddGuest({ eventId, sides, spacesLeft, onAdded, onDone }) {
   );
 }
 
-const WA_STATUS = {
-  queued: { text: "Sending…", cls: "bg-cream" },
-  sent: { text: "Sent ✓", cls: "bg-cream" },
-  delivered: { text: "Delivered ✓✓", cls: "bg-cream" },
-  read: { text: "Read ✓✓", cls: "bg-[#DCEFE3] text-[#1F6B3F]" },
-  failed: { text: "Didn’t deliver", cls: "bg-coral/20 text-[#7A2A1E]" },
-};
-
-function GuestRow({ guest, event, locked, onToast, onGuestlokSend }) {
-  const { confirm } = useFeedback();
+/** One row: who, admits, status, and one main action. Everything else is in the guest's sheet (⋯). */
+function GuestRow({ guest, event, locked, plus, onGuestlokSend, onMore, onToast }) {
   const message = renderMessage(event.invite_message, { guest, event });
-
-  function markSent() {
-    // Fire-and-forget: the WhatsApp tab opens immediately.
-    markInviteSent(guest.id);
-  }
-
-  async function copyLink() {
-    await navigator.clipboard.writeText(inviteLink(guest));
-    onToast("Invite link copied");
-  }
-
-  async function undoCheckIn() {
-    const sure = await confirm({
-      title: `Undo check-in for ${guest.name}?`,
-      body: "Their QR code will work again at the gate. Use this if someone was scanned by mistake.",
-      confirmLabel: "Undo check-in",
-    });
-    if (!sure) return;
-    const { error } = await supabase
-      .from("guests")
-      .update({ checked_in_at: null })
-      .eq("id", guest.id);
-    onToast(error ? friendlyError(error) : "Check-in undone", error ? "error" : undefined);
-  }
-
-  async function remove() {
-    const sure = await confirm({
-      title: `Remove ${guest.name}?`,
-      body: guest.invite_sent_at
-        ? "Their invite was already sent. The QR will stop working, so they’ll be turned back at the gate."
-        : "They’ll come off the list and free up their space on your plan.",
-      confirmLabel: "Remove guest",
-      danger: true,
-    });
-    if (!sure) return;
-    const { error } = await supabase.from("guests").delete().eq("id", guest.id);
-    onToast(error ? friendlyError(error) : `${guest.name} removed`, error ? "error" : undefined);
-  }
-
+  const status = inviteStatus(guest);
+  // The row shows a button only when there's something to do; resending lives in the sheet.
+  const canSend = !locked && needsInvite(guest);
+  const shareTicket = !locked && !guest.phone && !guest.checked_in_at && !hasInvite(guest);
+  const hasMain = canSend || shareTicket;
+  const sendLabel = status.key === "failed" ? "Try again" : "Send";
+  const main =
+    "flex-1 min-w-0 lg:flex-none lg:w-[150px] h-10 px-4 rounded-full bg-ochre hover:brightness-95 text-sm font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition [&_svg]:shrink-0";
+  const more = (
+    <button
+      type="button"
+      onClick={() => onMore(guest.id)}
+      aria-haspopup="dialog"
+      aria-label={`More for ${guest.name}`}
+      title="More"
+      className="h-10 w-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center transition"
+    >
+      <MoreHorizontal size={18} aria-hidden="true" />
+    </button>
+  );
   const initials = guest.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-  const status = guest.checked_in_at
-    ? { text: `Arrived ${formatEventTime(guest.checked_in_at)}`, cls: "bg-leaf text-white" }
-    : onGuestlokSend && guest.wa_status && WA_STATUS[guest.wa_status]
-      ? WA_STATUS[guest.wa_status]
-      : guest.invite_sent_at
-      ? { text: "Invite sent", cls: "bg-cream" }
-      : guest.phone
-        ? { text: "Not sent", cls: "bg-tile text-brown-soft" }
-        : { text: "No phone", cls: "bg-tile text-brown-soft" };
-  // Sending an invite to someone already inside makes no sense; their row gets simpler.
-  const showWa = !locked && !!guest.phone && !onGuestlokSend && !guest.checked_in_at;
-  const icon = "h-10 w-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center transition";
 
   return (
-    <li className="px-4 sm:px-6 py-4 grid gap-3 grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1.6fr)_72px_minmax(0,1fr)_372px] lg:gap-4 items-center hover:bg-[#FBFAF7]">
+    <li className="px-4 sm:px-6 py-4 grid gap-3 grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1.6fr)_72px_minmax(0,1fr)_206px] lg:gap-4 items-center hover:bg-[#FBFAF7]">
       {/* Who */}
       <div className="flex items-center gap-3 min-w-0">
         <span className={`w-11 h-11 shrink-0 rounded-full inline-flex items-center justify-center text-sm font-medium ${guest.checked_in_at ? "bg-ochre" : "bg-tile"}`} aria-hidden="true">
@@ -511,58 +496,226 @@ function GuestRow({ guest, event, locked, onToast, onGuestlokSend }) {
       {/* Admits (desktop) */}
       <p className="hidden lg:block tabular-nums text-[16px]">{guest.admits}</p>
 
-      {/* Status: top-right on phones, own column on desktop */}
-      <div className="justify-self-end lg:justify-self-start">
+      {/* Status: top-right on phones (with ⋯ when there's nothing to do), own column on desktop */}
+      <div className="justify-self-end lg:justify-self-start flex items-center gap-2">
         <span className={`inline-flex whitespace-nowrap text-xs sm:text-[13px] font-medium px-2.5 py-1 rounded-full ${status.cls}`}>{status.text}</span>
+        {!hasMain && <span className="lg:hidden">{more}</span>}
       </div>
 
-      {/* Actions: full row on phones */}
-      <div className="col-span-2 lg:col-span-1 flex items-center gap-1.5 lg:justify-end">
-        {!locked && guest.phone && onGuestlokSend && !guest.checked_in_at && (
-          <button
-            type="button"
-            onClick={() => onGuestlokSend(guest)}
-            title={guest.wa_error ?? undefined}
-            className="flex-1 min-w-0 lg:flex-none h-10 px-4 rounded-full bg-ochre text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:brightness-95"
-          >
-            <Send size={15} aria-hidden="true" /> {guest.wa_status && guest.wa_status !== "failed" ? "Resend" : guest.wa_status === "failed" ? "Retry" : "Send"}
+      {/* Actions: the one thing to do for this guest, plus their sheet */}
+      <div className={`col-span-2 lg:col-span-1 flex items-center gap-1.5 lg:justify-end ${hasMain ? "" : "max-lg:hidden"}`}>
+        {canSend && plus && (
+          <button type="button" onClick={() => onGuestlokSend(guest)} className={main} aria-label={`${sendLabel}: Guestlok sends ${guest.name} their invite`}>
+            <Send size={15} aria-hidden="true" /> {sendLabel}
           </button>
         )}
-        {showWa && (
+        {canSend && !plus && (
           <WhatsAppButton
             href={whatsappLink(guest.phone, message)}
             prepare={() => prepareTicketPreview(event, guest)}
-            onOpened={markSent}
+            onOpened={() => markInviteSent(guest.id)}
             busyLabel="Adding ticket…"
-            className="flex-1 min-w-0 lg:flex-none h-10 px-4 rounded-full bg-ochre text-sm font-medium inline-flex items-center justify-center gap-1.5 hover:brightness-95 whitespace-nowrap [&_svg]:shrink-0"
+            aria-label={`${sendLabel} ${guest.name}’s invite on WhatsApp`}
+            className={main}
           >
-            <MessageCircle size={15} aria-hidden="true" /> WhatsApp
+            <MessageCircle size={15} aria-hidden="true" /> {sendLabel}
           </WhatsAppButton>
         )}
-        {!locked && (
+        {shareTicket && (
           <TicketButton
             guest={guest}
             event={event}
             message={message}
-            onShared={markSent}
-            label={<span className={showWa ? "max-sm:sr-only" : ""}>Ticket</span>}
-            className={`${showWa ? "max-sm:w-10 max-sm:px-0 sm:px-4 shrink-0" : "flex-1 lg:flex-none px-4"} h-10 [&_svg]:shrink-0 rounded-full bg-tile hover:bg-sand text-sm font-medium inline-flex items-center justify-center gap-1.5`}
+            onShared={() => {
+              markInviteSent(guest.id);
+              onToast("Ticket ready to share");
+            }}
+            label={canShareFiles() ? "Share ticket" : "Save ticket"}
+            className="flex-1 min-w-0 lg:flex-none lg:w-[150px] h-10 px-4 rounded-full bg-tile hover:bg-sand text-sm font-medium inline-flex items-center justify-center gap-1.5 whitespace-nowrap [&_svg]:shrink-0"
           />
         )}
-        <button type="button" onClick={copyLink} aria-label={`Copy invite link for ${guest.name}`} title="Copy invite link" className={icon}>
-          <Link2 size={16} aria-hidden="true" />
-        </button>
-        {guest.checked_in_at && !locked && (
-          <button type="button" onClick={undoCheckIn} aria-label={`Undo check-in for ${guest.name}`} title="Undo check-in" className={icon}>
-            <RotateCcw size={16} aria-hidden="true" />
-          </button>
-        )}
-        {!locked && (
-          <button type="button" onClick={remove} aria-label={`Remove ${guest.name}`} title="Remove guest" className={`${icon} hover:!bg-coral/25`}>
-            <Trash2 size={16} aria-hidden="true" />
-          </button>
-        )}
+        {more}
       </div>
     </li>
+  );
+}
+
+/** Everything you can do for one guest, with their invite status in plain words. */
+function GuestSheet({ guest, event, locked, plus, onGuestlokSend, onToast, onClose }) {
+  const { confirm } = useFeedback();
+  const message = renderMessage(event.invite_message, { guest, event });
+  const status = inviteStatus(guest);
+  const canSend = !locked && !!guest.phone && !guest.checked_in_at;
+  const fresh = !hasInvite(guest);
+  const item = "w-full min-h-[56px] px-4 py-3 rounded-[18px] bg-tile hover:bg-sand text-left inline-flex items-center gap-3 transition [&_svg]:shrink-0";
+  const sub = "block text-[13px] text-brown-soft font-normal";
+
+  async function copyLink() {
+    await navigator.clipboard.writeText(inviteLink(guest));
+    onToast("Invite link copied");
+    onClose();
+  }
+
+  async function undoCheckIn() {
+    const sure = await confirm({
+      title: `Undo check-in for ${guest.name}?`,
+      body: "Their QR code will work again at the gate. Use this if someone was scanned by mistake.",
+      confirmLabel: "Undo check-in",
+    });
+    if (!sure) return;
+    const { error } = await supabase.from("guests").update({ checked_in_at: null }).eq("id", guest.id);
+    onToast(error ? friendlyError(error) : "Check-in undone", error ? "error" : undefined);
+    if (!error) onClose();
+  }
+
+  async function remove() {
+    const sure = await confirm({
+      title: `Remove ${guest.name}?`,
+      body: hasInvite(guest)
+        ? "Their invite was already sent. The QR will stop working, so they’ll be turned back at the gate."
+        : "They’ll come off the list and free up their space on your plan.",
+      confirmLabel: "Remove guest",
+      danger: true,
+    });
+    if (!sure) return;
+    const { error } = await supabase.from("guests").delete().eq("id", guest.id);
+    onToast(error ? friendlyError(error) : `${guest.name} removed`, error ? "error" : undefined);
+    if (!error) onClose();
+  }
+
+  const details = [guest.phone ? `+${guest.phone}` : "No phone", `admits ${guest.admits}`, guest.side].filter(Boolean).join(" · ");
+
+  return (
+    <Modal open onClose={onClose} title={guest.name} description={details} size="sm">
+      <div className="flex flex-col gap-4">
+        <div className="rounded-[18px] border-[1.5px] border-tile px-4 py-3 flex items-start gap-3">
+          <span className={`mt-0.5 inline-flex whitespace-nowrap text-xs font-medium px-2.5 py-1 rounded-full ${status.cls}`}>{status.text}</span>
+          <p className="text-sm text-brown-soft leading-relaxed">{inviteDetail(guest)}</p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {canSend && plus && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onGuestlokSend(guest);
+              }}
+              className={item}
+            >
+              <Send size={18} aria-hidden="true" />
+              <span>
+                {fresh ? "Send with Guestlok" : "Resend with Guestlok"}
+                <span className={sub}>From Guestlok’s WhatsApp. Uses 1 of your Plus sends.</span>
+              </span>
+            </button>
+          )}
+          {canSend && (
+            <WhatsAppButton
+              href={whatsappLink(guest.phone, message)}
+              prepare={() => prepareTicketPreview(event, guest)}
+              onOpened={() => {
+                markInviteSent(guest.id);
+                onClose();
+              }}
+              busyLabel="Adding ticket…"
+              className={item}
+            >
+              <MessageCircle size={18} aria-hidden="true" />
+              <span>
+                {fresh ? "Send from my WhatsApp" : "Resend from my WhatsApp"}
+                <span className={sub}>Opens a chat with their invite ready.{plus ? " Free." : ""}</span>
+              </span>
+            </WhatsAppButton>
+          )}
+          {!locked && (
+            <TicketButton
+              guest={guest}
+              event={event}
+              message={message}
+              onShared={() => {
+                markInviteSent(guest.id);
+                onClose();
+              }}
+              label={
+                <span>
+                  {canShareFiles() ? "Share their ticket" : "Download their ticket"}
+                  <span className={sub}>The QR card as a picture, to send any way you like.</span>
+                </span>
+              }
+              className={item}
+            />
+          )}
+          <button type="button" onClick={copyLink} className={item}>
+            <Link2 size={18} aria-hidden="true" />
+            <span>
+              Copy invite link
+              <span className={sub}>Opens their ticket. Works in SMS, email or any chat.</span>
+            </span>
+          </button>
+          {guest.checked_in_at && !locked && (
+            <button type="button" onClick={undoCheckIn} className={item}>
+              <RotateCcw size={18} aria-hidden="true" />
+              <span>
+                Undo check-in
+                <span className={sub}>If they were scanned by mistake.</span>
+              </span>
+            </button>
+          )}
+          {!locked && (
+            <button type="button" onClick={remove} className={`${item} !bg-transparent hover:!bg-coral/15 text-[#9A3324]`}>
+              <Trash2 size={18} aria-hidden="true" /> Remove from the list
+            </button>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Plus: who sends this round? Guestlok's number, or the host's own phone (free, as on Standard). */
+function SendChooser({ event, unsent, onPick, onClose }) {
+  const left = Math.max(0, (event.wa_quota ?? 0) - (event.wa_sent ?? 0));
+  const options = [
+    {
+      id: "guestlok",
+      icon: Send,
+      title: "Guestlok sends them",
+      body: `All ${unsent} at once from the official Guestlok WhatsApp, with the ticket picture and a “View my ticket” button. You see Sent, Delivered and Read for each guest.`,
+      note: `Uses your Plus sends · ${left.toLocaleString()} left`,
+      dark: true,
+    },
+    {
+      id: "phone",
+      icon: Smartphone,
+      title: "Send from my phone",
+      body: `Go through the ${unsent} one by one, one tap each, from your own WhatsApp. Good for close family who expect a message from you.`,
+      note: "Free · doesn’t use your Plus sends",
+    },
+  ];
+  return (
+    <Modal open onClose={onClose} title="Who should send them?" description="Your Plus plan can do both. Pick one for this round.">
+      <div className="flex flex-col gap-3">
+        {options.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => onPick(o.id)}
+            className={`group text-left rounded-[24px] p-5 flex gap-4 items-start transition hover:-translate-y-px ${o.dark ? "bg-brown text-cream" : "bg-tile hover:bg-sand"}`}
+          >
+            <span className={`w-10 h-10 shrink-0 rounded-full inline-flex items-center justify-center ${o.dark ? "bg-ochre text-brown" : "bg-white"}`} aria-hidden="true">
+              <o.icon size={18} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center justify-between gap-2 text-[17px] tracking-[-0.01em]">
+                {o.title} <ArrowRight size={17} aria-hidden="true" className="shrink-0 transition group-hover:translate-x-0.5" />
+              </span>
+              <span className={`mt-1 block text-sm leading-relaxed ${o.dark ? "text-sand" : "text-brown-soft"}`}>{o.body}</span>
+              <span className={`mt-2 inline-block text-xs font-medium px-2.5 py-1 rounded-full ${o.dark ? "bg-white/10" : "bg-white"}`}>{o.note}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </Modal>
   );
 }

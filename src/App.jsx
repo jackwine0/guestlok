@@ -5,11 +5,10 @@ import AppShell from "./components/AppShell.jsx";
 import { useAuth } from "./lib/auth.jsx";
 import Landing from "./pages/Landing.jsx";
 import { EventGate, EventGuests, EventInvitation, EventOverview, EventSettings } from "./pages/event/sections.js";
+import { Dashboard, EventDetail, NewEvent } from "./pages/appPages.js";
 
 const Login = lazy(() => import("./pages/Login.jsx"));
-const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
-const NewEvent = lazy(() => import("./pages/NewEvent.jsx"));
-const EventDetail = lazy(() => import("./pages/EventDetail.jsx"));
+
 const Invite = lazy(() => import("./pages/Invite.jsx"));
 const Sender = lazy(() => import("./pages/Sender.jsx"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));

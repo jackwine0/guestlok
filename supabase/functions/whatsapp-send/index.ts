@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     if (guest_ids?.length) {
       query = query.in('id', guest_ids.slice(0, BATCH))
     } else {
-      query = query.or('wa_status.is.null,wa_status.eq.failed').limit(BATCH + 1)
+      query = query.or('invite_sent_at.is.null,wa_status.eq.failed').limit(BATCH + 1)
     }
     const { data: rows, error: guestsError } = await query
     if (guestsError) throw guestsError

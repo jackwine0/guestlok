@@ -63,11 +63,11 @@ export const DELIVERY = {
   self: {
     name: "Standard",
     short: "You send them",
-    line: "Send each invite from your own WhatsApp, one tap per guest.",
+    line: "One tap per guest from your own WhatsApp. Family can help with a sending link.",
   },
   plus: {
     name: "Plus",
     short: "Guestlok sends them",
-    line: "We send every invite for you from the official Guestlok WhatsApp, with the ticket attached.",
+    line: "Guestlok sends every invite from its WhatsApp, with the ticket picture. You can still send any yourself.",
   },
 };

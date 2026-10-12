@@ -5,6 +5,7 @@ import { ButtonSpinner, KeyholeDisc } from "../../components/Brand.jsx";
 import EndedPanel from "../../components/EndedPanel.jsx";
 import { friendlyError } from "../../lib/errors.js";
 import { formatEventTime, scannerUrl } from "../../lib/format.js";
+import { hasInvite, needsInvite } from "../../lib/guestStatus.js";
 import { supabase } from "../../lib/supabase.js";
 
 const HOUR = 3600_000;
@@ -32,8 +33,8 @@ export default function Overview() {
   const onTheDay = event.status === "ended" || now >= startsAt - 4 * HOUR || arrived > 0;
 
   const withPhone = guests.filter((g) => g.phone);
-  const sent = withPhone.filter((g) => g.invite_sent_at).length;
-  const unsent = withPhone.filter((g) => !g.invite_sent_at && !g.checked_in_at).length;
+  const sent = withPhone.filter(hasInvite).length;
+  const unsent = guests.filter(needsInvite).length;
   const lastQuarter = sum(arrivedGuests.filter((g) => now - new Date(g.checked_in_at).getTime() < 15 * 60_000));
   const addedToday = sum(guests.filter((g) => now - new Date(g.created_at).getTime() < 24 * HOUR));
 
@@ -304,11 +305,38 @@ function ArrivalsCard({ guests }) {
 /** Before the day: what's left to do. */
 function ReadyCard({ event, guests, unsent }) {
   const designed = !!(event.cover_image_url || event.invite_message || (event.card_theme && event.card_theme !== "ochre"));
+  const plus = event.delivery === "plus";
   const steps = [
-    { done: designed, title: "Design your invitation", to: "invitation", cta: "Design" },
-    { done: guests.length > 0, title: "Add your guests", to: "guests", cta: "Add" },
-    { done: guests.length > 0 && unsent === 0, title: unsent ? `Send ${unsent} invite${unsent === 1 ? "" : "s"}` : "Send invites", to: "guests?send=1", cta: "Send" },
-    { done: false, title: "Brief your ushers", to: "gate", cta: "Open" },
+    {
+      done: designed,
+      title: "Design your invitation",
+      what: "Add a cover photo, colours and the message guests get with their ticket.",
+      to: "invitation",
+      cta: "Design",
+    },
+    {
+      done: guests.length > 0,
+      title: "Add your guests",
+      what: "Type names or import a list. Set how many people each invite admits.",
+      to: "guests",
+      cta: "Add",
+    },
+    {
+      done: guests.length > 0 && unsent === 0,
+      title: unsent ? `Send ${unsent} invite${unsent === 1 ? "" : "s"}` : "Send invites",
+      what: plus
+        ? "Guestlok sends them all from its WhatsApp, or you send from your own phone."
+        : "One tap per guest opens WhatsApp with their invite. Family can help with a sending link.",
+      to: "guests?send=1",
+      cta: "Send",
+    },
+    {
+      done: false,
+      title: "Brief your ushers",
+      what: "On the day, send them the scanner link. They scan each guest’s QR at the gate.",
+      to: "gate",
+      cta: "Open",
+    },
   ];
   const done = steps.filter((s) => s.done).length;
   return (
@@ -322,12 +350,15 @@ function ReadyCard({ event, guests, unsent }) {
       </div>
       <ol className="mt-5 flex flex-col gap-2">
         {steps.map((s, i) => (
-          <li key={s.title} className="flex items-center gap-3 rounded-[20px] bg-tile pl-3 pr-2 py-2">
+          <li key={i} className="flex items-center gap-3 rounded-[20px] bg-tile pl-3 pr-2 py-2.5">
             <span className={`w-9 h-9 shrink-0 rounded-full flex items-center justify-center text-sm font-medium ${s.done ? "bg-ochre" : "bg-white text-brown-soft"}`} aria-label={s.done ? "Done" : `Step ${i + 1}`}>
               {s.done ? <Check size={17} /> : i + 1}
             </span>
-            <span className={`flex-1 min-w-0 truncate text-[16px] ${s.done ? "text-brown-soft line-through decoration-mute" : ""}`}>{s.title}</span>
-            <Link to={s.to} className="h-10 px-4 rounded-full bg-white text-sm inline-flex items-center gap-1 hover:bg-brown hover:text-white transition">
+            <span className="flex-1 min-w-0">
+              <span className={`block text-[16px] leading-snug ${s.done ? "text-brown-soft line-through decoration-mute" : ""}`}>{s.title}</span>
+              {!s.done && <span className="block mt-0.5 text-[13px] leading-snug text-brown-soft">{s.what}</span>}
+            </span>
+            <Link to={s.to} className="h-10 px-4 shrink-0 rounded-full bg-white text-sm inline-flex items-center gap-1 hover:bg-brown hover:text-white transition">
               {s.cta} <ArrowUpRight size={14} aria-hidden="true" />
             </Link>
           </li>

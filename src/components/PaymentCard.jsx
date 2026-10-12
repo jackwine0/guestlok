@@ -5,8 +5,8 @@ import { friendlyError, functionError } from "../lib/errors.js";
 import { useFeedback } from "../lib/feedback.js";
 import { formatEventTime, formatNaira, formatShortDate } from "../lib/format.js";
 import { deleteConfirmOptions, deleteEvent } from "../lib/deleteEvent.js";
-import { unlocks } from "../lib/plans.js";
-import { planPriceKobo, usePricing } from "../lib/pricing.js";
+import WhatYouGet from "./WhatYouGet.jsx";
+import { planPriceKobo, plusQuota, usePricing } from "../lib/pricing.js";
 import { supabase } from "../lib/supabase.js";
 import { ButtonSpinner } from "./Brand.jsx";
 import DeliveryPicker from "./DeliveryPicker.jsx";
@@ -26,7 +26,7 @@ function lagosParts(iso) {
 export default function PaymentCard({ event, onEventChange, notice, showSteps = true }) {
   const navigate = useNavigate();
   const { confirm, toast } = useFeedback();
-  const { tiers, settings } = usePricing();
+  const { tiers, settings, loaded } = usePricing();
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -109,7 +109,15 @@ export default function PaymentCard({ event, onEventChange, notice, showSteps = 
 
           <fieldset>
             <legend className="label">Plan</legend>
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-3" role="radiogroup" aria-label="Plan">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-3" role="radiogroup" aria-label="Plan" aria-busy={!loaded}>
+              {!loaded &&
+                [0, 1, 2].map((i) => (
+                  <div key={i} className="rounded-[22px] bg-tile p-4 h-[112px] flex flex-col gap-2 animate-pulse motion-reduce:animate-none" aria-hidden="true">
+                    <span className="h-5 w-20 rounded-full bg-white" />
+                    <span className="h-4 w-28 rounded-full bg-white/70" />
+                    <span className="mt-auto h-7 w-24 rounded-full bg-white" />
+                  </div>
+                ))}
               {tiers.map((t) => {
                 const on = t.id === event.tier_id;
                 return (
@@ -147,28 +155,31 @@ export default function PaymentCard({ event, onEventChange, notice, showSteps = 
             <p className="text-sm text-sand mt-1">
               {tier ? `${tier.name}${delivery === "plus" ? " Plus" : ""} · one-off, this event only` : "Loading plans…"}
             </p>
-            {tier && delivery === "plus" && (
-              <p className="mt-2 text-sm text-sand tabular-nums">
-                {formatNaira(tier.price_kobo)} plan + {formatNaira(total - tier.price_kobo)} Guestlok sends
-              </p>
+            {tier && (
+              <dl className="mt-4 pt-4 border-t border-white/10 grid gap-2 text-[15px] tabular-nums">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-sand">{tier.name} plan · up to {tier.max_headcount.toLocaleString()} people</dt>
+                  <dd>{formatNaira(tier.price_kobo)}</dd>
+                </div>
+                {delivery === "plus" && (
+                  <div className="flex justify-between gap-3">
+                    <dt className="text-sand">Plus · {plusQuota(tier.max_headcount, settings).toLocaleString()} Guestlok sends</dt>
+                    <dd>{formatNaira(total - tier.price_kobo)}</dd>
+                  </div>
+                )}
+              </dl>
             )}
           </div>
-          <ul className="flex flex-col gap-2.5">
-            {unlocks(delivery).map((u) => (
-              <li key={u} className="flex items-start gap-3 text-[15px]">
-                <span className="mt-0.5 w-5 h-5 shrink-0 rounded-full bg-ochre text-brown inline-flex items-center justify-center">
-                  <Check size={12} strokeWidth={3} aria-hidden="true" />
-                </span>
-                {u}
-              </li>
-            ))}
-          </ul>
           <button type="button" onClick={pay} disabled={busy || !tier} className="h-[56px] rounded-full bg-ochre text-brown text-[16px] font-medium inline-flex items-center justify-center gap-2 hover:brightness-95 disabled:opacity-60">
             {busy ? <ButtonSpinner /> : <Lock size={17} aria-hidden="true" />} Pay {tier ? formatNaira(total) : ""}
           </button>
           <p className="-mt-2 flex items-center justify-center gap-2 text-sm text-sand">
             <ShieldCheck size={16} aria-hidden="true" /> Card, transfer or USSD via Paystack
           </p>
+          <div className="pt-5 border-t border-white/10">
+            <p className="text-sm text-sand">Included</p>
+            <WhatYouGet delivery={delivery} tone="dark" compact className="mt-3" />
+          </div>
         </aside>
       </div>
 

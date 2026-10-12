@@ -10,7 +10,7 @@ import { ButtonSpinner } from "./Brand.jsx";
  *
  * prepare(): returns the ticket-upload promise (or null). onOpened(): after the chat opens.
  */
-export default function WhatsAppButton({ href, prepare, onOpened, className = "", children, busyLabel = "Adding ticket…" }) {
+export default function WhatsAppButton({ href, prepare, onOpened, className = "", children, busyLabel = "Adding ticket…", compact = false, ...rest }) {
   const [state, setState] = useState("idle"); // idle | busy | ready
 
   function open() {
@@ -47,16 +47,17 @@ export default function WhatsAppButton({ href, prepare, onOpened, className = ""
       rel="noreferrer"
       onPointerDown={() => prepare?.()}
       onClick={onClick}
+      {...rest}
       aria-busy={state === "busy"}
       className={`${className} ${state === "busy" ? "opacity-80 cursor-progress" : ""}`}
     >
       {state === "busy" ? (
         <>
-          <ButtonSpinner /> {busyLabel}
+          <ButtonSpinner /> {!compact && busyLabel}
         </>
       ) : state === "ready" ? (
         <>
-          <ExternalLink size={16} aria-hidden="true" /> Open chat
+          <ExternalLink size={16} aria-hidden="true" /> {compact ? <span className="sr-only">Open chat</span> : "Open chat"}
         </>
       ) : (
         children

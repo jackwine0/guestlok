@@ -41,7 +41,7 @@ export default function PlusPanel({ event, tier, settings = DEFAULT_PRICING, com
           <div className="mt-5 rounded-[24px] bg-brown text-cream p-5">
             <p className="text-[17px] tracking-[-0.01em]">Let Guestlok send them</p>
             <p className="mt-1 text-sm text-sand">
-              Every invite goes out in one tap from the official Guestlok WhatsApp, with the ticket attached and delivery ticks for each guest.
+              You keep everything you have now. Guestlok also sends every invite in one tap from the official Guestlok WhatsApp, with the ticket picture, a “View my ticket” button and Sent · Delivered · Read for each guest.
             </p>
             <button type="button" onClick={() => go("upgrade", { kind: "upgrade" })} disabled={!!busy} className="mt-4 btn-ochre w-full">
               {busy === "upgrade" ? <ButtonSpinner /> : <Send size={16} aria-hidden="true" />} Upgrade to Plus · {formatNaira(extra)}
@@ -60,7 +60,7 @@ export default function PlusPanel({ event, tier, settings = DEFAULT_PRICING, com
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 id="invites-title" className="section-title">Guestlok sends</h3>
-          <p className="mt-1 text-brown-soft text-[15px]">Plus: invites go out from the official Guestlok WhatsApp.</p>
+          <p className="mt-1 text-brown-soft text-[15px]">Plus: Guestlok sends your invites from its official WhatsApp. You can still send any invite from your own phone, free.</p>
         </div>
         <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-brown text-cream">Plus</span>
       </div>

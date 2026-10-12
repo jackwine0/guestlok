@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 
 /** The four stages a host goes through, shown on every onboarding screen. */
-const FLOW = ["Event details", "Guests & plan", "Pay", "Set up"];
+const FLOW = ["Your event", "Plan", "Pay", "Set up"];
 
 export default function FlowSteps({ current, className = "" }) {
   return (

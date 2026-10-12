@@ -14,8 +14,9 @@ export default function DeliveryPicker({ tier, settings = DEFAULT_PRICING, value
       id: "self",
       icon: Smartphone,
       title: "I’ll send them",
+      badge: "Standard",
       price: "Included",
-      points: ["From your own WhatsApp", "One tap per guest"],
+      points: ["Every feature included", "You send from your own WhatsApp, one tap per guest", "Family or your planner can help"],
     },
     {
       id: "plus",
@@ -24,13 +25,14 @@ export default function DeliveryPicker({ tier, settings = DEFAULT_PRICING, value
       badge: "Plus",
       price: tier ? `+${formatNaira(extra)}` : "Plus",
       priceNote: perGuest ? `about ₦${perGuest} a guest` : null,
-      points: ["All invites in one tap", "From the official Guestlok WhatsApp", "Ticket image + delivery ticks"],
+      points: ["Everything in Standard", "We send all invites at once from Guestlok’s WhatsApp", "Ticket picture + “View my ticket” button", "Sent · Delivered · Read for each guest"],
     },
   ];
 
   return (
     <fieldset>
-      <legend className="label">How should invites go out?</legend>
+      <legend className="label">Who sends the invites?</legend>
+      <p className="-mt-1 mb-3 text-sm text-brown-soft">Both include every feature. With Plus, Guestlok also sends the invites for you.</p>
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
         {options.map((o) => {
           const selected = value === o.id;
@@ -59,13 +61,19 @@ export default function DeliveryPicker({ tier, settings = DEFAULT_PRICING, value
               <span className="flex items-center gap-2 text-[18px] tracking-[-0.02em]">
                 {o.title}
                 {o.badge && (
-                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${selected ? "bg-ochre text-brown" : "bg-brown text-cream"}`}>{o.badge}</span>
+                  <span
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      o.id === "plus" ? (selected ? "bg-ochre text-brown" : "bg-brown text-cream") : selected ? "bg-brown text-cream" : "bg-white"
+                    }`}
+                  >
+                    {o.badge}
+                  </span>
                 )}
               </span>
               <ul className="flex flex-col gap-1.5">
                 {o.points.map((p) => (
-                  <li key={p} className={`flex items-center gap-2 text-sm ${selected ? "" : "text-brown-soft"}`}>
-                    <Check size={14} strokeWidth={2.6} className={selected && o.id === "plus" ? "text-ochre" : ""} aria-hidden="true" /> {p}
+                  <li key={p} className={`flex items-start gap-2 text-sm leading-snug ${selected ? "" : "text-brown-soft"}`}>
+                    <Check size={14} strokeWidth={2.6} className={`mt-0.5 shrink-0 ${selected && o.id === "plus" ? "text-ochre" : ""}`} aria-hidden="true" /> {p}
                   </li>
                 ))}
               </ul>

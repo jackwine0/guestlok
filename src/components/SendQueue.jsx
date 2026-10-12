@@ -1,4 +1,5 @@
 import { Check, ChevronRight, MessageCircle } from "lucide-react";
+import { needsInvite } from "../lib/guestStatus.js";
 import { ButtonSpinner } from "./Brand.jsx";
 import { useEffect, useMemo, useState } from "react";
 import { whatsappLink } from "../lib/format.js";
@@ -19,7 +20,7 @@ export default function SendQueue({ event, guests, onClose, onShare }) {
   const [side, setSide] = useState("");
   const sides = useMemo(() => [...new Set(snapshot.map((g) => g.side?.trim()).filter(Boolean))].sort(), [snapshot]);
   const queue = useMemo(
-    () => snapshot.filter((g) => g.phone && !g.checked_in_at && (includeSent || !g.invite_sent_at) && (!side || g.side === side)),
+    () => snapshot.filter((g) => g.phone && !g.checked_in_at && (includeSent || needsInvite(g)) && (!side || g.side === side)),
     [snapshot, includeSent, side],
   );
   const noPhone = snapshot.filter((g) => !g.phone).length;
