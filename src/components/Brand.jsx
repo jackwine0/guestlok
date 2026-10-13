@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ArrowRight as LucideArrowRight } from "lucide-react";
 const RAYS = Array.from({ length: 28 }, (_, i) => ({
   rotate: `rotate(${((i * 360) / 28).toFixed(2)} 50 50)`,
@@ -62,7 +63,9 @@ export function SunMark({
   hole = "#F5E7A8",
   label,
   className,
+  phase = 0, // ms offset (negative) so a new loader picks up where the last one was
 }) {
+  const at = (delay) => (phase ? `calc(${delay} + ${phase}ms)` : delay);
   return (
     <svg
       width={size}
@@ -77,16 +80,16 @@ export function SunMark({
         <g key={r.rotate} transform={r.rotate}>
           <g
             className={animated ? "gl-ray" : undefined}
-            style={animated ? { animationDelay: r.delay } : undefined}
+            style={animated ? { animationDelay: at(r.delay) } : undefined}
           >
             <rect x="47.6" y="5" width="4.8" height="18" rx="1.2" fill={ray} />
             <circle cx="50" cy="9" r="1.3" fill={dot} />
           </g>
         </g>
       ))}
-      <g className={animated ? "gl-disc" : undefined}>
+      <g className={animated ? "gl-disc" : undefined} style={animated && phase ? { animationDelay: `${phase}ms` } : undefined}>
         <circle cx="50" cy="50" r="25" fill={disc} />
-        <g className={animated ? "gl-key" : undefined}>
+        <g className={animated ? "gl-key" : undefined} style={animated && phase ? { animationDelay: `${phase}ms` } : undefined}>
           <circle cx="50" cy="45" r="7" fill={hole} />
           <path d="M46.8 48 L44.2 64 L55.8 64 L53.2 48 Z" fill={hole} />
         </g>
@@ -97,17 +100,22 @@ export function SunMark({
 
 /** Full-area "roll call" loader. */
 export function Loader({ label = "Checking the list", fullScreen = false }) {
+  // Loaders often replace each other (page code, then its data). Sync every one to the same
+  // clock so the animation carries on instead of restarting.
+  const [now] = useState(() => (typeof performance !== "undefined" ? performance.now() : 0));
+  const sun = -(now % 2600);
+  const dots = -(now % 1200);
   return (
     <div
       role="status"
       className={`flex flex-col items-center justify-center gap-6 ${fullScreen ? "min-h-dvh bg-ochre" : "py-24"}`}
     >
-      <SunMark size={fullScreen ? 180 : 120} animated />
+      <SunMark size={fullScreen ? 180 : 120} animated phase={sun || -1} />
       <p className="text-lg font-medium tracking-tight">
         {label}
-        <span className="gl-dot">.</span>
-        <span className="gl-dot">.</span>
-        <span className="gl-dot">.</span>
+        <span className="gl-dot" style={{ animationDelay: `${dots}ms` }}>.</span>
+        <span className="gl-dot" style={{ animationDelay: `${dots + 200}ms` }}>.</span>
+        <span className="gl-dot" style={{ animationDelay: `${dots + 400}ms` }}>.</span>
       </p>
     </div>
   );

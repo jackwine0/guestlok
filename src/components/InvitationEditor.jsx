@@ -1,5 +1,5 @@
 import { Check, Crop, Eye, ImagePlus, Maximize, Move, RotateCcw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../lib/auth.jsx";
 import { friendlyError } from "../lib/errors.js";
@@ -67,6 +67,21 @@ export default function InvitationEditor({ event, onSaved }) {
   const previewMotion = "gl-fade";
   const msgMotion = useSwapMotion(msgTab === "guestlok" ? 0 : 1);
   const textRef = useRef(null);
+  const previewRef = useRef(null);
+  const lastView = useRef(view);
+
+  // Switching the preview back to the full ticket: bring its top into view (it scrolls with the page).
+  useEffect(() => {
+    const was = lastView.current;
+    lastView.current = view;
+    if (view !== "card" || was === "card") return;
+    requestAnimationFrame(() => {
+      const el = previewRef.current;
+      if (!el || el.offsetParent === null) return; // hidden on phones
+      const top = el.getBoundingClientRect().top;
+      if (top < 150) glideTo(window.scrollY + top - 150);
+    });
+  }, [view]);
   const fileRef = useRef(null);
 
   const dirty =
@@ -476,7 +491,7 @@ export default function InvitationEditor({ event, onSaved }) {
 
         {/* Live preview: stays in view on desktop; a button opens it on phones */}
         {/* The full ticket is taller than the screen, so it scrolls with the page; the shorter message previews stay in view. */}
-        <div className={`max-lg:hidden ${view === "card" ? "" : "lg:sticky lg:top-[150px]"}`}>{preview}</div>
+        <div ref={previewRef} className={`max-lg:hidden ${view === "card" ? "" : "lg:sticky lg:top-[150px]"}`}>{preview}</div>
       </div>
 
       <Modal open={showPreview} onClose={() => setShowPreview(false)} title="Preview" description="Sample guest: Adaeze Okafor, admits 2." size="md">
@@ -578,6 +593,35 @@ function PreviewPanel({ view, onView, options, motion, event, previewEvent, them
       <p className="px-1 text-xs text-sand text-center">Sample guest: Adaeze Okafor, admits 2.</p>
     </aside>
   );
+}
+
+/** A gentle scroll (the browser's "smooth" is too quick for a long jump). Instant with reduced motion. */
+function glideTo(target, ms = 750) {
+  const start = window.scrollY;
+  const dist = target - start;
+  if (Math.abs(dist) < 2) return;
+  if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    window.scrollTo(0, target);
+    return;
+  }
+  const t0 = performance.now();
+  const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  let cancelled = false;
+  const stop = () => (cancelled = true);
+  // If the person scrolls or taps meanwhile, let them take over.
+  window.addEventListener("wheel", stop, { once: true, passive: true });
+  window.addEventListener("touchstart", stop, { once: true, passive: true });
+  const step = (now) => {
+    if (cancelled) return;
+    const t = Math.min(1, (now - t0) / ms);
+    window.scrollTo(0, start + dist * ease(t));
+    if (t < 1) requestAnimationFrame(step);
+    else {
+      window.removeEventListener("wheel", stop);
+      window.removeEventListener("touchstart", stop);
+    }
+  };
+  requestAnimationFrame(step);
 }
 
 /**

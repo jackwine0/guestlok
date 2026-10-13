@@ -201,8 +201,8 @@ input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webk
 @keyframes gl-rise { from { opacity: 0; transform: translateY(24px) scale(.98); } }
 .gl-toast { animation: gl-toast .32s cubic-bezier(.2,.9,.3,1.2); }
 @keyframes gl-toast { from { opacity: 0; transform: translateY(16px) scale(.96); } }
-.gl-pop { animation: gl-pop .22s cubic-bezier(.2,.9,.3,1.15); }
-@keyframes gl-pop { from { opacity: 0; transform: scale(.94); } }
+.gl-pop { animation: gl-dialog-in .22s cubic-bezier(.2,.9,.3,1.15); }
+@keyframes gl-dialog-in { from { opacity: 0; transform: scale(.94); } }
 .gl-hint { animation: gl-hint .2s ease-out; }
 @keyframes gl-hint { from { opacity: 0; transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) {
