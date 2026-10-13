@@ -63,7 +63,8 @@ export default function InvitationEditor({ event, onSaved }) {
   const [view, setView] = useState("card"); // preview: 'card' | 'guestlok' | 'own'
   const [msgTab, setMsgTab] = useState("guestlok"); // Plus: which message is being edited
   const [showPreview, setShowPreview] = useState(false); // phones
-  const previewMotion = useSwapMotion(["card", "guestlok", "own"].indexOf(view));
+  // Preview swaps with a quick cross-fade (a slide plus the panel resizing felt like a double step).
+  const previewMotion = "gl-fade";
   const msgMotion = useSwapMotion(msgTab === "guestlok" ? 0 : 1);
   const textRef = useRef(null);
   const fileRef = useRef(null);
@@ -354,6 +355,12 @@ export default function InvitationEditor({ event, onSaved }) {
     </div>
   );
 
+  // Safari doesn't focus buttons on click, so both focus and click switch the preview.
+  // The Guestlok/your-phone switch sets the view itself, so it doesn't flash the old one first.
+  const showMessage = (e) => {
+    if (!e.target.closest?.("[data-msg-switch]")) setView(canStyle ? msgTab : "own");
+  };
+
   const previewOptions = [
     { value: "card", label: "Ticket" },
     ...(canStyle ? [{ value: "guestlok", label: "Guestlok msg" }] : []),
@@ -374,7 +381,7 @@ export default function InvitationEditor({ event, onSaved }) {
   );
 
   return (
-    <section className="flex flex-col gap-[18px] pb-28">
+    <section className="flex flex-col gap-[18px] max-lg:pb-28">
       <div className="flex flex-wrap items-end justify-between gap-3 px-1">
         <div>
           <h2 className="page-title">Invitation</h2>
@@ -392,9 +399,10 @@ export default function InvitationEditor({ event, onSaved }) {
       <input ref={fileRef} id="cover" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && uploadCover(e.target.files[0])} />
 
       <div className="grid gap-[18px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] items-start">
-        <div className="flex flex-col gap-[18px] min-w-0">
+        {/* lg:pb lives inside the grid so the sticky preview has room at the end of the page */}
+        <div className="flex flex-col gap-[18px] min-w-0 lg:pb-28">
           {/* 1 · The ticket */}
-          <div className="bento flex flex-col gap-6" onFocusCapture={() => setView("card")} onPointerDownCapture={() => setView("card")}>
+          <div className="bento flex flex-col gap-6" onFocusCapture={() => setView("card")} onClickCapture={() => setView("card")}>
             <StepHead n={1} title="The ticket" hint="What each guest opens and shows at the gate. Same design for everyone, with their own name and QR." />
             <div className="flex flex-col gap-3">
               <h4 className="text-[16px] font-medium">Cover photo</h4>
@@ -434,13 +442,18 @@ export default function InvitationEditor({ event, onSaved }) {
           </div>
 
           {/* 2 · The message */}
-          <div className="bento flex flex-col gap-5" onFocusCapture={() => setView(canStyle ? msgTab : "own")} onPointerDownCapture={() => setView(canStyle ? msgTab : "own")}>
+          <div
+            className="bento flex flex-col gap-5"
+            onFocusCapture={showMessage}
+            onClickCapture={showMessage}
+          >
             <StepHead
               n={2}
               title="The WhatsApp message"
               hint={canStyle ? "Plus sends from Guestlok’s WhatsApp, and you can still send from your own phone. Set up both." : "The text that goes with each guest’s invite link."}
             />
             {canStyle && (
+              <div data-msg-switch className="self-start">
               <Segmented
                 label="Which message"
                 value={msgTab}
@@ -452,8 +465,8 @@ export default function InvitationEditor({ event, onSaved }) {
                   { value: "guestlok", label: "Sent by Guestlok" },
                   { value: "own", label: "From your phone" },
                 ]}
-                className="self-start"
               />
+              </div>
             )}
             <div key={canStyle ? msgTab : "own"} className={msgMotion}>
               {canStyle && msgTab === "guestlok" ? guestlokMessage : ownMessage}
@@ -462,7 +475,8 @@ export default function InvitationEditor({ event, onSaved }) {
         </div>
 
         {/* Live preview: stays in view on desktop; a button opens it on phones */}
-        <div className="max-lg:hidden lg:sticky lg:top-[150px]">{preview}</div>
+        {/* The full ticket is taller than the screen, so it scrolls with the page; the shorter message previews stay in view. */}
+        <div className={`max-lg:hidden ${view === "card" ? "" : "lg:sticky lg:top-[150px]"}`}>{preview}</div>
       </div>
 
       <Modal open={showPreview} onClose={() => setShowPreview(false)} title="Preview" description="Sample guest: Adaeze Okafor, admits 2." size="md">
@@ -521,7 +535,7 @@ function PreviewPanel({ view, onView, options, motion, event, previewEvent, them
   return (
     <aside className="rounded-[32px] bg-brown p-3 sm:p-4 flex flex-col gap-3" aria-label="Preview">
       <Segmented tone="dark" size="sm" label="Preview" value={current} onChange={onView} options={options} className="self-center" />
-      <div className="rounded-[24px] overflow-hidden lg:max-h-[calc(100dvh-310px)] lg:overflow-y-auto [scrollbar-width:thin]">
+      <div className="rounded-[24px] overflow-hidden">
         <div key={current} className={motion}>
           {current === "card" && (
             <div className="p-4" style={{ background: THEMES[theme].page }}>
@@ -529,14 +543,14 @@ function PreviewPanel({ view, onView, options, motion, event, previewEvent, them
             </div>
           )}
           {current === "guestlok" && (
-            <div className="bg-[#E6DDD4] p-4 min-h-[360px] flex flex-col justify-end">
-              <div className="mr-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-white text-[#111B21] p-1.5 shadow-sm">
-                <div className="rounded-xl overflow-hidden mb-1.5 h-[150px] flex items-center justify-center" style={{ background: THEMES[theme].page }}>
+            <div className="bg-[#E6DDD4] p-3.5 flex flex-col justify-end">
+              <div className="mr-auto max-w-[94%] rounded-2xl rounded-tl-sm bg-white text-[#111B21] p-1.5 shadow-sm">
+                <div className="rounded-xl overflow-hidden mb-1.5 h-[110px] flex items-center justify-center" style={{ background: THEMES[theme].page }}>
                   <div className="w-[62%] scale-[0.55] origin-center pointer-events-none">
                     <TicketCard invite={toInvite(SAMPLE_GUEST, previewEvent)} sample />
                   </div>
                 </div>
-                <p className="px-2.5 pb-1 text-[14px] leading-relaxed whitespace-pre-line break-words">{guestlokText}</p>
+                <p className="px-2.5 pb-1 text-[13.5px] leading-snug whitespace-pre-line break-words">{guestlokText}</p>
                 <p className="px-2.5 pb-1.5 text-[12px] opacity-50">Sent by Guestlok for your host</p>
                 <div className="border-t border-black/10 py-2 text-center text-[14px] text-[#027EB5] font-medium">View my ticket</div>
               </div>
@@ -544,7 +558,7 @@ function PreviewPanel({ view, onView, options, motion, event, previewEvent, them
             </div>
           )}
           {current === "own" && (
-            <div className="bg-[#E6DDD4] p-4 min-h-[360px] flex flex-col justify-end">
+            <div className="bg-[#E6DDD4] p-3.5 min-h-[300px] flex flex-col justify-end">
               <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-[#D9FDD3] text-[#111B21] p-1.5 shadow-sm">
                 <div className="rounded-xl bg-white/60 overflow-hidden mb-1.5 flex">
                   <span className="w-1 shrink-0" style={{ background: THEMES[theme].head }} />

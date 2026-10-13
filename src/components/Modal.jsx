@@ -6,7 +6,8 @@ import { createPortal } from "react-dom";
  * Accessible modal. Bottom sheet on phones, centred card on larger screens.
  * Escape and the backdrop close it; focus moves in and returns on close.
  */
-export default function Modal({ open, onClose, title, description, children, size = "md", tone = "light", dismissible = true }) {
+/** variant: "sheet" slides up from the bottom on phones; "dialog" is a centred pop-up everywhere (confirmations). */
+export default function Modal({ open, onClose, title, description, children, size = "md", tone = "light", dismissible = true, variant = "sheet" }) {
   const panelRef = useRef(null);
   const titleId = useId();
   const descId = useId();
@@ -62,9 +63,10 @@ export default function Modal({ open, onClose, title, description, children, siz
 
   const width = { sm: "sm:max-w-[440px]", md: "sm:max-w-[560px]", lg: "sm:max-w-[760px]" }[size];
   const dark = tone === "dark";
+  const pop = variant === "dialog";
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-6">
+    <div className={`fixed inset-0 z-[60] flex justify-center ${pop ? "items-center p-4 sm:p-6" : "items-end sm:items-center sm:p-6"}`}>
       <div
         className="gl-fade absolute inset-0 bg-brown/55 backdrop-blur-[2px]"
         onClick={dismissible ? onClose : undefined}
@@ -77,14 +79,14 @@ export default function Modal({ open, onClose, title, description, children, siz
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`gl-rise relative w-full ${width} max-h-[92dvh] overflow-y-auto overscroll-contain gl-noscrollbar rounded-t-[32px] sm:rounded-[36px] px-6 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-8 outline-none shadow-[0_30px_80px_rgba(28,18,12,0.35)] ${
+        className={`${pop ? "gl-pop rounded-[28px] sm:rounded-[36px] p-6 sm:p-8" : "gl-rise rounded-t-[32px] sm:rounded-[36px] px-6 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-8"} relative w-full ${width} max-h-[92dvh] overflow-y-auto overscroll-contain gl-noscrollbar outline-none shadow-[0_30px_80px_rgba(28,18,12,0.35)] ${
           dark ? "bg-brown text-cream" : "bg-white text-brown"
         }`}
       >
-        <div className="sm:hidden mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-current opacity-15" aria-hidden="true" />
+        {!pop && <div className="sm:hidden mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-current opacity-15" aria-hidden="true" />}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-[26px] sm:text-[30px] font-normal tracking-[-0.035em] leading-[1.1]">
+            <h2 id={titleId} className={`${pop ? "text-[24px]" : "text-[26px]"} sm:text-[30px] font-normal tracking-[-0.035em] leading-[1.1]`}>
               {title}
             </h2>
             {description && (

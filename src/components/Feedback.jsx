@@ -54,13 +54,14 @@ export default function FeedbackProvider({ children }) {
         title={dialog?.opts.title}
         description={dialog?.opts.body}
         size="sm"
+        variant="dialog"
       >
         {dialog?.kind === "confirm" && (
           <ConfirmButtons opts={dialog.opts} onAnswer={close} />
         )}
       </Modal>
 
-      <Modal open={dialog?.kind === "ask"} onClose={() => close(null)} title={dialog?.opts.title} description={dialog?.opts.body} size="sm">
+      <Modal open={dialog?.kind === "ask"} onClose={() => close(null)} title={dialog?.opts.title} description={dialog?.opts.body} size="sm" variant="dialog">
         {dialog?.kind === "ask" && <AskForm opts={dialog.opts} onAnswer={close} />}
       </Modal>
     </FeedbackContext.Provider>
