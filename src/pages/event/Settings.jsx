@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { ButtonSpinner } from "../../components/Brand.jsx";
 import EndedPanel from "../../components/EndedPanel.jsx";
@@ -7,6 +8,7 @@ import { deleteConfirmOptions, deleteEvent } from "../../lib/deleteEvent.js";
 import { friendlyError } from "../../lib/errors.js";
 import { useFeedback } from "../../lib/feedback.js";
 import { usePricing } from "../../lib/pricing.js";
+import { useUnsavedGuard } from "../../lib/useUnsavedGuard.js";
 import { supabase } from "../../lib/supabase.js";
 
 /** Split an ISO time into Lagos-local date + time strings for the inputs. */
@@ -83,13 +85,15 @@ export default function Settings() {
     setBusy(false);
     if (error) {
       toast(friendlyError(error), { tone: "error" });
-      return;
+      return false;
     }
     setEvent(data);
     const next = lagosParts(data.starts_at);
     setForm({ name: data.name, host_names: data.host_names ?? "", date: next.date, time: next.time, venue: data.venue, notes: data.notes ?? "" });
     toast("Saved. Guests see the new details when they open their invite.");
+    return true;
   }
+  useUnsavedGuard(dirty && !locked, save, { what: "the event details" });
 
   async function endEvent() {
     const sure = await confirm({
@@ -210,7 +214,8 @@ export default function Settings() {
         </ul>
       </section>
 
-      {/* Save bar */}
+      {/* Save bar (portaled so the tab animation can't trap "fixed") */}
+      {createPortal(
       <div
         className={`fixed z-40 left-1/2 lg:left-[calc(50%-199px)] -translate-x-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))] w-[min(94vw,520px)] transition duration-300 ${
           dirty && !locked ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0 invisible pointer-events-none"
@@ -227,7 +232,9 @@ export default function Settings() {
             {busy && <ButtonSpinner />} Save changes
           </button>
         </div>
-      </div>
+      </div>,
+      document.body,
+      )}
     </div>
   );
 }

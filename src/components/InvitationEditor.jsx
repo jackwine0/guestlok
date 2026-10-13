@@ -1,5 +1,6 @@
-import { Check, Crop, ImagePlus, Maximize, Move, RotateCcw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
+import { Check, Crop, Eye, ImagePlus, Maximize, Move, RotateCcw, Trash2, ZoomIn, ZoomOut } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../lib/auth.jsx";
 import { friendlyError } from "../lib/errors.js";
 import { useFeedback } from "../lib/feedback.js";
@@ -8,7 +9,9 @@ import { supabase } from "../lib/supabase.js";
 import { useSwapMotion } from "../lib/tabTransition.js";
 import { usePricing } from "../lib/pricing.js";
 import { NOTE_MAX, WA_STYLES, availableStyles, waPreviewText, waStyle } from "../lib/waTemplates.js";
+import { useUnsavedGuard } from "../lib/useUnsavedGuard.js";
 import { ButtonSpinner } from "./Brand.jsx";
+import Modal from "./Modal.jsx";
 import Segmented from "./Segmented.jsx";
 import TicketCard from "./TicketCard.jsx";
 
@@ -57,8 +60,11 @@ export default function InvitationEditor({ event, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [view, setView] = useState("card");
-  const previewMotion = useSwapMotion(view === "card" ? 0 : 1);
+  const [view, setView] = useState("card"); // preview: 'card' | 'guestlok' | 'own'
+  const [msgTab, setMsgTab] = useState("guestlok"); // Plus: which message is being edited
+  const [showPreview, setShowPreview] = useState(false); // phones
+  const previewMotion = useSwapMotion(["card", "guestlok", "own"].indexOf(view));
+  const msgMotion = useSwapMotion(msgTab === "guestlok" ? 0 : 1);
   const textRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -99,7 +105,10 @@ export default function InvitationEditor({ event, onSaved }) {
     const ok = await update(fields);
     setSaving(false);
     if (ok) toast("Invitation saved. New invites use it straight away.");
+    return !!ok;
   }
+
+  useUnsavedGuard(dirty, save, { what: "the invitation" });
 
   function discard() {
     setMessage(savedMessage);
@@ -181,320 +190,315 @@ export default function InvitationEditor({ event, onSaved }) {
     if (f) uploadCover(f);
   };
 
+  const coverBlock = !event.cover_image_url ? (
+    <label
+      htmlFor="cover"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={onDrop}
+      className={`flex flex-col items-center justify-center gap-2 rounded-[24px] border-2 border-dashed px-6 py-10 text-center cursor-pointer transition ${
+        dragOver ? "border-brown bg-cream" : "border-sand bg-tile hover:border-brown-soft"
+      }`}
+    >
+      <span className="w-14 h-14 rounded-full bg-white inline-flex items-center justify-center">
+        {uploading ? <ButtonSpinner /> : <ImagePlus size={24} aria-hidden="true" />}
+      </span>
+      <span className="text-[17px]">{uploading ? "Uploading…" : "Drop a photo here, or tap to choose"}</span>
+      <span className="text-sm text-brown-soft">Optional · JPG, PNG or WebP · we shrink big phone photos for you</span>
+    </label>
+  ) : (
+    <div className="grid gap-5 grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-start">
+      <CoverAdjuster src={event.cover_image_url} frame={frame} onChange={setFrame} disabled={!canFrame} />
+      <div className="flex flex-col gap-4">
+        {canFrame ? (
+          <>
+            <Segmented
+              role="group"
+              label="How the photo fits"
+              value={frame.fit}
+              onChange={(id) => setFrame((f) => ({ ...f, fit: id }))}
+              options={[
+                { value: "fill", label: "Fill frame", icon: Crop },
+                { value: "whole", label: "Whole photo", icon: Maximize },
+              ]}
+              className="self-start"
+            />
+            {frame.fit === "fill" && (
+              <div className="flex items-center gap-2 w-full">
+                <button type="button" aria-label="Zoom out" onClick={() => setFrame((f) => ({ ...f, zoom: Math.max(1, +(f.zoom - 0.1).toFixed(2)) }))} className="w-10 h-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center">
+                  <ZoomOut size={16} aria-hidden="true" />
+                </button>
+                <label htmlFor="zoom" className="sr-only">Zoom</label>
+                <input id="zoom" type="range" min={1} max={3} step={0.01} value={frame.zoom} onChange={(e) => setFrame((f) => ({ ...f, zoom: Number(e.target.value) }))} className="gl-range flex-1" />
+                <button type="button" aria-label="Zoom in" onClick={() => setFrame((f) => ({ ...f, zoom: Math.min(3, +(f.zoom + 0.1).toFixed(2)) }))} className="w-10 h-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center">
+                  <ZoomIn size={16} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+            <p className="text-sm text-brown-soft">
+              {frame.fit === "fill"
+                ? "Drag the photo to move it, zoom to get closer. Flyers look best as “Whole photo”."
+                : "The full photo at its own shape, nothing cropped. Good for flyers and portrait photos."}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm rounded-2xl bg-cream px-4 py-3">
+            To move, zoom or fit the photo, run the <code>cover_adjust</code> migration in Supabase first.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <label htmlFor="cover" className="btn h-10 px-4 text-sm bg-tile hover:bg-sand cursor-pointer">
+            {uploading ? <ButtonSpinner /> : <ImagePlus size={16} aria-hidden="true" />} Change
+          </label>
+          {canFrame && !sameFrame(frame, { ...DEFAULT_FRAME, fit: frame.fit }) && (
+            <button type="button" onClick={() => setFrame((f) => ({ ...DEFAULT_FRAME, fit: f.fit }))} className="btn h-10 px-4 text-sm bg-tile hover:bg-sand">
+              <RotateCcw size={15} aria-hidden="true" /> Reset framing
+            </button>
+          )}
+          <button type="button" onClick={removeCover} className="btn h-10 px-4 text-sm text-brown-soft hover:text-[#9A3324] hover:bg-coral/10">
+            <Trash2 size={15} aria-hidden="true" /> Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ownMessage = (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor="msg" className="text-sm text-brown-soft">
+          {canStyle ? "Used when you or a helper send from your own WhatsApp." : "Sent with each guest’s personal link, from your WhatsApp."}
+        </label>
+        <button type="button" onClick={() => setMessage(DEFAULT_MESSAGE)} disabled={message === DEFAULT_MESSAGE} className="h-9 px-3.5 shrink-0 rounded-full bg-tile hover:bg-sand text-sm inline-flex items-center gap-1.5 disabled:opacity-40">
+          <RotateCcw size={14} aria-hidden="true" /> Reset
+        </button>
+      </div>
+      <div>
+        <textarea
+          id="msg"
+          ref={textRef}
+          rows={8}
+          maxLength={1000}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="field h-auto py-3.5 leading-relaxed text-[15px] rounded-[20px] bg-tile border-transparent focus:bg-white"
+        />
+        <p className="mt-1.5 text-right text-xs text-brown-soft tabular-nums">{message.length}/1000</p>
+      </div>
+      <div>
+        <p className="text-sm text-brown-soft mb-2">Tap to insert. Each guest gets their own details.</p>
+        <div className="flex flex-wrap gap-1.5">
+          {MESSAGE_VARIABLES.map(([token, hint]) => (
+            <button key={token} type="button" title={hint} onClick={() => insertVariable(token)} className="h-8 px-3 rounded-full bg-tile hover:bg-ochre text-xs font-mono transition">
+              {token}
+            </button>
+          ))}
+        </div>
+        {!message.includes("{link}") && (
+          <p className="mt-3 text-sm bg-cream rounded-2xl px-4 py-3">
+            No <code>{"{link}"}</code> in your message, so we’ll add the invite link at the end.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  const guestlokMessage = canStyle && (
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-brown-soft">
+        WhatsApp only lets Guestlok’s number send approved wording, so you pick a style and add a short note.
+      </p>
+      <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2" role="radiogroup" aria-label="Message style">
+        {styles.map((st) => {
+          const on = style === st.id;
+          return (
+            <button
+              key={st.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => setStyle(st.id)}
+              className={`text-left rounded-[20px] px-4 py-3.5 transition ${on ? "bg-brown text-cream" : "bg-tile hover:bg-sand"}`}
+            >
+              <span className="flex items-center justify-between gap-2 text-[16px]">
+                {st.label}
+                {on && <Check size={16} aria-hidden="true" />}
+              </span>
+              <span className={`block text-[13px] ${on ? "text-sand" : "text-brown-soft"}`}>{st.blurb}</span>
+            </button>
+          );
+        })}
+      </div>
+      {styles.length < WA_STYLES.length && <p className="-mt-1 text-xs text-brown-soft">More styles appear here once WhatsApp approves them.</p>}
+      <div>
+        <label htmlFor="wa-note" className="label">
+          Your note <span className="font-normal text-brown-soft">(optional)</span>
+        </label>
+        <input
+          id="wa-note"
+          maxLength={NOTE_MAX}
+          disabled={!styleSpec.note}
+          placeholder={styleSpec.note ? styleSpec.defaultNote : "The Simple style has no note. Pick another style to add one."}
+          value={styleSpec.note ? note : ""}
+          onChange={(e) => setNote(e.target.value)}
+          className="field disabled:opacity-60"
+        />
+        <p className="mt-1.5 flex justify-between gap-3 text-xs text-brown-soft">
+          <span>Dress code, gate time, colours. One line.</span>
+          <span className="tabular-nums">{note.length}/{NOTE_MAX}</span>
+        </p>
+      </div>
+    </div>
+  );
+
+  const previewOptions = [
+    { value: "card", label: "Ticket" },
+    ...(canStyle ? [{ value: "guestlok", label: "Guestlok msg" }] : []),
+    { value: "own", label: canStyle ? "Your msg" : "WhatsApp" },
+  ];
+  const preview = (
+    <PreviewPanel
+      view={view}
+      onView={setView}
+      options={previewOptions}
+      motion={previewMotion}
+      event={event}
+      previewEvent={previewEvent}
+      theme={theme}
+      ownText={previewText}
+      guestlokText={canStyle ? waPreviewText(style, note, previewEvent, SAMPLE_GUEST) : ""}
+    />
+  );
+
   return (
-    <section className="flex flex-col gap-[18px] pb-24">
+    <section className="flex flex-col gap-[18px] pb-28">
       <div className="flex flex-wrap items-end justify-between gap-3 px-1">
         <div>
           <h2 className="page-title">Invitation</h2>
-          <p className="page-sub">The card your guests open, and the WhatsApp message that brings it.</p>
+          <p className="page-sub">Design the ticket your guests show at the gate, and the WhatsApp message that brings it.</p>
         </div>
+        <span
+          role="status"
+          className={`h-9 px-3.5 rounded-full text-sm inline-flex items-center gap-2 ${dirty ? "bg-ochre text-brown font-medium" : "bg-white text-brown-soft"}`}
+        >
+          <span className={`w-2 h-2 rounded-full ${dirty ? "bg-brown" : "bg-leaf"}`} aria-hidden="true" />
+          {dirty ? "Unsaved changes" : "All changes saved"}
+        </span>
       </div>
 
-      <div className="grid gap-[18px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] items-start">
+      <input ref={fileRef} id="cover" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(e) => e.target.files?.[0] && uploadCover(e.target.files[0])} />
+
+      <div className="grid gap-[18px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_400px] items-start">
         <div className="flex flex-col gap-[18px] min-w-0">
-          {/* 1 · Cover photo */}
-          <div className="bento flex flex-col gap-5">
-            <StepHead n={1} title="Cover photo" hint="The celebrants, the couple or your flyer. It sits at the top of every invite." />
-
-            <input
-              ref={fileRef}
-              id="cover"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              onChange={(e) => e.target.files?.[0] && uploadCover(e.target.files[0])}
-            />
-
-            {!event.cover_image_url ? (
-              <label
-                htmlFor="cover"
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={onDrop}
-                className={`flex flex-col items-center justify-center gap-2 rounded-[28px] border-2 border-dashed px-6 py-12 text-center cursor-pointer transition ${
-                  dragOver ? "border-brown bg-cream" : "border-sand bg-tile hover:border-brown-soft"
-                }`}
-              >
-                <span className="w-14 h-14 rounded-full bg-white inline-flex items-center justify-center">
-                  {uploading ? <ButtonSpinner /> : <ImagePlus size={24} aria-hidden="true" />}
-                </span>
-                <span className="text-[17px]">{uploading ? "Uploading…" : "Drop a photo here, or tap to choose"}</span>
-                <span className="text-sm text-brown-soft">JPG, PNG or WebP · we shrink big phone photos for you</span>
-              </label>
-            ) : (
-              <div className="grid gap-5 grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] items-start">
-                <CoverAdjuster src={event.cover_image_url} frame={frame} onChange={setFrame} disabled={!canFrame} />
-                <div className="flex flex-col gap-5">
-
-                {canFrame ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-3">
-                      <Segmented
-                        role="group"
-                        label="How the photo fits"
-                        value={frame.fit}
-                        onChange={(id) => setFrame((f) => ({ ...f, fit: id }))}
-                        options={[
-                          { value: "fill", label: "Fill frame", icon: Crop },
-                          { value: "whole", label: "Whole photo", icon: Maximize },
-                        ]}
-                        className="self-start"
-                      />
-                      {frame.fit === "fill" && (
-                        <div className="flex items-center gap-2 w-full">
-                          <button type="button" aria-label="Zoom out" onClick={() => setFrame((f) => ({ ...f, zoom: Math.max(1, +(f.zoom - 0.1).toFixed(2)) }))} className="w-10 h-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center">
-                            <ZoomOut size={16} aria-hidden="true" />
-                          </button>
-                          <label htmlFor="zoom" className="sr-only">Zoom</label>
-                          <input
-                            id="zoom"
-                            type="range"
-                            min={1}
-                            max={3}
-                            step={0.01}
-                            value={frame.zoom}
-                            onChange={(e) => setFrame((f) => ({ ...f, zoom: Number(e.target.value) }))}
-                            className="gl-range flex-1"
-                          />
-                          <button type="button" aria-label="Zoom in" onClick={() => setFrame((f) => ({ ...f, zoom: Math.min(3, +(f.zoom + 0.1).toFixed(2)) }))} className="w-10 h-10 shrink-0 rounded-full bg-tile hover:bg-sand inline-flex items-center justify-center">
-                            <ZoomIn size={16} aria-hidden="true" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-sm text-brown-soft">
-                      {frame.fit === "fill"
-                        ? "Drag the photo to move it, zoom to get closer. Use “Whole photo” for flyers so nothing is cut off."
-                        : "The full photo shows at its own shape, nothing cropped. Good for flyers and portrait photos."}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-sm rounded-2xl bg-cream px-4 py-3">
-                    To move, zoom or fit the photo, run the <code>cover_adjust</code> migration in Supabase first.
-                  </p>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                  <label htmlFor="cover" className="btn h-11 bg-tile hover:bg-sand cursor-pointer">
-                    {uploading ? <ButtonSpinner /> : <ImagePlus size={17} aria-hidden="true" />} Change photo
-                  </label>
-                  {canFrame && !sameFrame(frame, { ...DEFAULT_FRAME, fit: frame.fit }) && (
-                    <button type="button" onClick={() => setFrame((f) => ({ ...DEFAULT_FRAME, fit: f.fit }))} className="btn h-11 bg-tile hover:bg-sand">
-                      <RotateCcw size={16} aria-hidden="true" /> Reset framing
-                    </button>
-                  )}
-                  <button type="button" onClick={removeCover} className="btn h-11 text-brown-soft hover:text-[#9A3324] hover:bg-coral/10">
-                    <Trash2 size={17} aria-hidden="true" /> Remove
-                  </button>
-                </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* 2 · Colours */}
-          <div className="bento flex flex-col gap-5">
-            <StepHead n={2} title="Card colours" hint="Pick the one that matches your aso ebi or décor." />
-            <div className="grid gap-3 grid-cols-3 sm:grid-cols-5" role="radiogroup" aria-label="Card colours">
-              {Object.entries(THEMES).map(([id, t]) => {
-                const on = theme === id;
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => setTheme(id)}
-                    className={`group relative rounded-[22px] p-2 text-left transition ${on ? "bg-brown text-cream" : "bg-tile hover:bg-sand"}`}
-                  >
-                    <span className="block rounded-[16px] p-2.5 aspect-[4/5]" style={{ background: t.page }} aria-hidden="true">
-                      <span className="flex h-full flex-col rounded-[10px] overflow-hidden bg-white">
-                        <span className="h-[38%]" style={{ background: t.head }} />
-                        <span className="flex-1 flex items-center justify-center">
-                          <span className="w-1/2 aspect-square rounded-[4px]" style={{ background: t.soft, boxShadow: `inset 0 0 0 3px ${t.ink}22` }} />
-                        </span>
-                      </span>
-                    </span>
-                    <span className="mt-2 mb-0.5 px-1 flex items-center justify-between text-sm">
-                      {t.label}
-                      {on && <Check size={15} aria-hidden="true" />}
-                    </span>
-                  </button>
-                );
-              })}
+          {/* 1 · The ticket */}
+          <div className="bento flex flex-col gap-6" onFocusCapture={() => setView("card")} onPointerDownCapture={() => setView("card")}>
+            <StepHead n={1} title="The ticket" hint="What each guest opens and shows at the gate. Same design for everyone, with their own name and QR." />
+            <div className="flex flex-col gap-3">
+              <h4 className="text-[16px] font-medium">Cover photo</h4>
+              {coverBlock}
             </div>
-          </div>
-
-          {/* 3 · Plus: the message Guestlok sends */}
-          {canStyle && (
-            <div className="bento flex flex-col gap-5">
-              <StepHead n={3} title="Message Guestlok sends" hint="Pick a style. WhatsApp only allows approved wording from Guestlok’s number, so you add a short note instead of writing the whole message." />
-              <div className="grid gap-2.5 grid-cols-1 sm:grid-cols-2" role="radiogroup" aria-label="Message style">
-                {styles.map((st) => {
-                  const on = style === st.id;
+            <div className="h-px bg-tile" aria-hidden="true" />
+            <div className="flex flex-col gap-3">
+              <h4 className="text-[16px] font-medium">Colours <span className="font-normal text-brown-soft text-sm">· match your aso ebi or décor</span></h4>
+              <div className="grid gap-2.5 grid-cols-5 max-w-[520px]" role="radiogroup" aria-label="Ticket colours">
+                {Object.entries(THEMES).map(([id, t]) => {
+                  const on = theme === id;
                   return (
                     <button
-                      key={st.id}
+                      key={id}
                       type="button"
                       role="radio"
                       aria-checked={on}
-                      onClick={() => setStyle(st.id)}
-                      className={`text-left rounded-[20px] px-4 py-3.5 transition ${on ? "bg-brown text-cream" : "bg-tile hover:bg-sand"}`}
+                      aria-label={t.label}
+                      onClick={() => setTheme(id)}
+                      className={`rounded-[18px] p-1.5 sm:p-2 text-left transition ring-2 ${on ? "ring-brown bg-white" : "ring-transparent bg-tile hover:bg-sand"}`}
                     >
-                      <span className="flex items-center justify-between gap-2 text-[16px]">
-                        {st.label}
-                        {on && <Check size={16} aria-hidden="true" />}
+                      <span className="block rounded-[12px] p-1.5 aspect-square" style={{ background: t.page }} aria-hidden="true">
+                        <span className="flex h-full flex-col rounded-[7px] overflow-hidden bg-white">
+                          <span className="h-[42%]" style={{ background: t.head }} />
+                          <span className="flex-1" style={{ background: t.soft }} />
+                        </span>
                       </span>
-                      <span className={`block text-[13px] ${on ? "text-sand" : "text-brown-soft"}`}>{st.blurb}</span>
+                      <span className="mt-1.5 px-0.5 flex items-center justify-between gap-1 text-xs sm:text-sm">
+                        <span className="truncate">{t.label}</span>
+                        {on && <Check size={14} className="shrink-0" aria-hidden="true" />}
+                      </span>
                     </button>
                   );
                 })}
               </div>
-              {styles.length < WA_STYLES.length && (
-                <p className="text-xs text-brown-soft">More styles appear here once WhatsApp approves them.</p>
-              )}
-              <div>
-                <label htmlFor="wa-note" className="label">
-                  Your note <span className="font-normal text-brown-soft">(optional)</span>
-                </label>
-                <input
-                  id="wa-note"
-                  maxLength={NOTE_MAX}
-                  disabled={!styleSpec.note}
-                  placeholder={styleSpec.note ? styleSpec.defaultNote : "The Simple style has no note. Pick another style to add one."}
-                  value={styleSpec.note ? note : ""}
-                  onChange={(e) => setNote(e.target.value)}
-                  className="field disabled:opacity-60"
-                />
-                <p className="mt-1.5 flex justify-between gap-3 text-xs text-brown-soft">
-                  <span>Dress code, gate time, colours. One line.</span>
-                  <span className="tabular-nums">{note.length}/{NOTE_MAX}</span>
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Message for the host's own WhatsApp */}
-          <div className="bento flex flex-col gap-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <StepHead
-                n={canStyle ? 4 : 3}
-                title={canStyle ? "Your own WhatsApp message" : "WhatsApp message"}
-                hint={canStyle ? "Used when you or a helper send an invite from your own phone." : "Sent with each guest’s personal link."}
-              />
-              <button type="button" onClick={() => setMessage(DEFAULT_MESSAGE)} disabled={message === DEFAULT_MESSAGE} className="h-10 px-4 rounded-full bg-tile hover:bg-sand text-sm inline-flex items-center gap-1.5 disabled:opacity-40">
-                <RotateCcw size={14} aria-hidden="true" /> Reset
-              </button>
-            </div>
-            <div>
-              <label htmlFor="msg" className="sr-only">Message template</label>
-              <textarea
-                id="msg"
-                ref={textRef}
-                rows={9}
-                maxLength={1000}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="field h-auto py-3.5 leading-relaxed text-[15px] rounded-[20px] bg-tile border-transparent focus:bg-white"
-              />
-              <p className="mt-1.5 text-right text-xs text-brown-soft tabular-nums">{message.length}/1000</p>
-            </div>
-            <div>
-              <p className="text-sm text-brown-soft mb-2">Tap to insert. Each guest gets their own details.</p>
-              <div className="flex flex-wrap gap-1.5">
-                {MESSAGE_VARIABLES.map(([token, hint]) => (
-                  <button key={token} type="button" title={hint} onClick={() => insertVariable(token)} className="h-8 px-3 rounded-full bg-tile hover:bg-ochre text-xs font-mono transition">
-                    {token}
-                  </button>
-                ))}
-              </div>
-              {!message.includes("{link}") && (
-                <p className="mt-3 text-sm bg-cream rounded-2xl px-4 py-3">
-                  No <code>{"{link}"}</code> in your message, so we’ll add the invite link at the end.
-                </p>
-              )}
             </div>
           </div>
-        </div>
 
-        {/* Live preview */}
-        <aside className="rounded-[36px] bg-brown p-4 sm:p-5 flex flex-col gap-4" aria-label="Preview">
-          <div className="flex items-center justify-between gap-3 px-1">
-            <p className="text-cream text-[15px]">Preview</p>
-            <Segmented
-              tone="dark"
-              size="sm"
-              label="Preview"
-              value={view}
-              onChange={setView}
-              options={[
-                { value: "card", label: "Invite" },
-                { value: "chat", label: "WhatsApp" },
-              ]}
+          {/* 2 · The message */}
+          <div className="bento flex flex-col gap-5" onFocusCapture={() => setView(canStyle ? msgTab : "own")} onPointerDownCapture={() => setView(canStyle ? msgTab : "own")}>
+            <StepHead
+              n={2}
+              title="The WhatsApp message"
+              hint={canStyle ? "Plus sends from Guestlok’s WhatsApp, and you can still send from your own phone. Set up both." : "The text that goes with each guest’s invite link."}
             />
-          </div>
-          <div key={view} className={`rounded-[28px] overflow-hidden ${previewMotion}`}>
-            {view === "chat" && canStyle ? (
-              <div className="bg-[#E6DDD4] p-4 min-h-[420px] flex flex-col justify-end">
-                <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-white text-[#111B21] p-1.5 shadow-sm">
-                  <div className="rounded-xl overflow-hidden mb-1.5 h-[150px] flex items-center justify-center" style={{ background: THEMES[theme].page }}>
-                    <div className="w-[62%] scale-[0.55] origin-center pointer-events-none">
-                      <TicketCard invite={toInvite(SAMPLE_GUEST, previewEvent)} sample />
-                    </div>
-                  </div>
-                  <p className="px-2.5 pb-1 text-[14px] leading-relaxed whitespace-pre-line break-words">
-                    {waPreviewText(style, note, previewEvent, SAMPLE_GUEST)}
-                  </p>
-                  <p className="px-2.5 pb-1.5 text-[12px] opacity-50">Sent by Guestlok for your host</p>
-                  <div className="border-t border-black/10 py-2 text-center text-[14px] text-[#027EB5] font-medium">View my ticket</div>
-                </div>
-                <p className="mt-2 text-center text-[11px] text-brown-soft">From Guestlok’s WhatsApp · the picture is each guest’s own ticket</p>
-              </div>
-            ) : view === "card" ? (
-              <div className="p-4" style={{ background: THEMES[theme].page }}>
-                <TicketCard invite={toInvite(SAMPLE_GUEST, previewEvent)} sample />
-              </div>
-            ) : (
-              <div className="bg-[#E6DDD4] p-4 min-h-[420px] flex flex-col justify-end">
-                <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-[#D9FDD3] text-[#111B21] p-1.5 shadow-sm">
-                  <div className="rounded-xl bg-white/60 overflow-hidden mb-1.5 flex">
-                    <span className="w-1 shrink-0" style={{ background: THEMES[theme].head }} />
-                    <span className="px-3 py-2 min-w-0">
-                      <span className="block text-[13px] font-medium truncate">{event.name}</span>
-                      <span className="block text-xs opacity-60">guestlok.app · Your personal invite</span>
-                    </span>
-                  </div>
-                  <p className="px-2.5 pb-1.5 text-[14px] leading-relaxed whitespace-pre-line break-words">{previewText}</p>
-                  <p className="px-2.5 pb-1 text-right text-[11px] opacity-50">12:04 ✓✓</p>
-                </div>
-              </div>
+            {canStyle && (
+              <Segmented
+                label="Which message"
+                value={msgTab}
+                onChange={(v) => {
+                  setMsgTab(v);
+                  setView(v);
+                }}
+                options={[
+                  { value: "guestlok", label: "Sent by Guestlok" },
+                  { value: "own", label: "From your phone" },
+                ]}
+                className="self-start"
+              />
             )}
+            <div key={canStyle ? msgTab : "own"} className={msgMotion}>
+              {canStyle && msgTab === "guestlok" ? guestlokMessage : ownMessage}
+            </div>
           </div>
-          <p className="px-1 text-xs text-sand">Sample guest: Adaeze Okafor, admits 2.</p>
-        </aside>
+        </div>
+
+        {/* Live preview: stays in view on desktop; a button opens it on phones */}
+        <div className="max-lg:hidden lg:sticky lg:top-[150px]">{preview}</div>
       </div>
 
-      {/* Save bar: appears only when something changed */}
-      <div
-        className={`fixed z-40 left-1/2 lg:left-[calc(50%-219px)] -translate-x-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))] w-[min(94vw,560px)] transition duration-300 ${
-          dirty ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0 invisible pointer-events-none"
-        }`}
-        aria-hidden={!dirty}
-      >
-        <div className="flex items-center gap-2 rounded-full bg-brown text-cream pl-5 pr-1.5 py-1.5 shadow-[0_18px_40px_rgba(28,18,12,0.35)]">
-          <span className="w-2 h-2 rounded-full bg-ochre shrink-0" aria-hidden="true" />
-          <span className="flex-1 text-[15px]">Unsaved changes</span>
-          <button type="button" onClick={discard} tabIndex={dirty ? 0 : -1} className="h-11 px-4 rounded-full text-sm text-sand hover:text-cream">
-            Discard
+      <Modal open={showPreview} onClose={() => setShowPreview(false)} title="Preview" description="Sample guest: Adaeze Okafor, admits 2." size="md">
+        {preview}
+      </Modal>
+
+      {/* Bottom bar: save when something changed; preview button on phones.
+          Portaled: the tab's slide-in animation would otherwise trap "fixed" inside the page. */}
+      {createPortal(
+      <div className="fixed z-40 left-1/2 lg:left-[calc(50%-209px)] -translate-x-1/2 bottom-[max(1rem,env(safe-area-inset-bottom))] w-[min(94vw,560px)] pointer-events-none">
+        {dirty ? (
+          <div className="gl-tab-in pointer-events-auto flex items-center gap-1.5 rounded-full bg-brown text-cream pl-4 sm:pl-5 pr-1.5 py-1.5 shadow-[0_18px_40px_rgba(28,18,12,0.35)]">
+            <span className="w-2 h-2 rounded-full bg-ochre shrink-0" aria-hidden="true" />
+            <span className="flex-1 min-w-0 truncate text-[15px]">Unsaved changes</span>
+            <button type="button" onClick={() => setShowPreview(true)} aria-label="Preview" className="lg:hidden h-11 w-11 shrink-0 rounded-full text-sand hover:text-cream inline-flex items-center justify-center">
+              <Eye size={18} aria-hidden="true" />
+            </button>
+            <button type="button" onClick={discard} className="h-11 px-3 sm:px-4 shrink-0 rounded-full text-sm text-sand hover:text-cream">
+              Discard
+            </button>
+            <button type="button" onClick={save} disabled={saving} className="h-11 px-4 sm:px-5 shrink-0 rounded-full bg-ochre text-brown text-sm font-medium inline-flex items-center gap-2">
+              {saving && <ButtonSpinner />} Save
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowPreview(true)}
+            className="lg:hidden pointer-events-auto mx-auto flex h-12 px-5 rounded-full bg-brown text-cream items-center gap-2 shadow-[0_18px_40px_rgba(28,18,12,0.3)]"
+          >
+            <Eye size={18} aria-hidden="true" /> Preview
           </button>
-          <button type="button" onClick={save} disabled={saving} tabIndex={dirty ? 0 : -1} className="h-11 px-5 rounded-full bg-ochre text-brown text-sm font-medium inline-flex items-center gap-2">
-            {saving && <ButtonSpinner />} Save invitation
-          </button>
-        </div>
-      </div>
+        )}
+      </div>,
+      document.body,
+      )}
     </section>
   );
 }
@@ -508,6 +512,57 @@ function StepHead({ n, title, hint }) {
         <p className="mt-1 text-[15px] text-brown-soft">{hint}</p>
       </div>
     </div>
+  );
+}
+
+/** The ticket, the Guestlok message and the host's own message, as guests will see them. */
+function PreviewPanel({ view, onView, options, motion, event, previewEvent, theme, ownText, guestlokText }) {
+  const current = options.some((o) => o.value === view) ? view : "card";
+  return (
+    <aside className="rounded-[32px] bg-brown p-3 sm:p-4 flex flex-col gap-3" aria-label="Preview">
+      <Segmented tone="dark" size="sm" label="Preview" value={current} onChange={onView} options={options} className="self-center" />
+      <div className="rounded-[24px] overflow-hidden lg:max-h-[calc(100dvh-310px)] lg:overflow-y-auto [scrollbar-width:thin]">
+        <div key={current} className={motion}>
+          {current === "card" && (
+            <div className="p-4" style={{ background: THEMES[theme].page }}>
+              <TicketCard invite={toInvite(SAMPLE_GUEST, previewEvent)} sample />
+            </div>
+          )}
+          {current === "guestlok" && (
+            <div className="bg-[#E6DDD4] p-4 min-h-[360px] flex flex-col justify-end">
+              <div className="mr-auto max-w-[92%] rounded-2xl rounded-tl-sm bg-white text-[#111B21] p-1.5 shadow-sm">
+                <div className="rounded-xl overflow-hidden mb-1.5 h-[150px] flex items-center justify-center" style={{ background: THEMES[theme].page }}>
+                  <div className="w-[62%] scale-[0.55] origin-center pointer-events-none">
+                    <TicketCard invite={toInvite(SAMPLE_GUEST, previewEvent)} sample />
+                  </div>
+                </div>
+                <p className="px-2.5 pb-1 text-[14px] leading-relaxed whitespace-pre-line break-words">{guestlokText}</p>
+                <p className="px-2.5 pb-1.5 text-[12px] opacity-50">Sent by Guestlok for your host</p>
+                <div className="border-t border-black/10 py-2 text-center text-[14px] text-[#027EB5] font-medium">View my ticket</div>
+              </div>
+              <p className="mt-2 text-center text-[11px] text-brown-soft">From Guestlok’s WhatsApp · the picture is each guest’s own ticket</p>
+            </div>
+          )}
+          {current === "own" && (
+            <div className="bg-[#E6DDD4] p-4 min-h-[360px] flex flex-col justify-end">
+              <div className="ml-auto max-w-[92%] rounded-2xl rounded-tr-sm bg-[#D9FDD3] text-[#111B21] p-1.5 shadow-sm">
+                <div className="rounded-xl bg-white/60 overflow-hidden mb-1.5 flex">
+                  <span className="w-1 shrink-0" style={{ background: THEMES[theme].head }} />
+                  <span className="px-3 py-2 min-w-0">
+                    <span className="block text-[13px] font-medium truncate">{event.name}</span>
+                    <span className="block text-xs opacity-60">guestlok · Your personal invite</span>
+                  </span>
+                </div>
+                <p className="px-2.5 pb-1.5 text-[14px] leading-relaxed whitespace-pre-line break-words">{ownText}</p>
+                <p className="px-2.5 pb-1 text-right text-[11px] opacity-50">12:04 ✓✓</p>
+              </div>
+              <p className="mt-2 text-center text-[11px] text-brown-soft">From your WhatsApp</p>
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="px-1 text-xs text-sand text-center">Sample guest: Adaeze Okafor, admits 2.</p>
+    </aside>
   );
 }
 

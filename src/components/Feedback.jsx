@@ -128,10 +128,15 @@ function ConfirmButtons({ opts, onAnswer }) {
           <input id="gl-confirm-type" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} className="field" />
         </div>
       )}
-      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5">
+      <div className={opts.extraLabel ? "flex flex-col-reverse gap-2.5" : "flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5"}>
         <button type="button" onClick={() => onAnswer(false)} className="btn bg-tile hover:bg-sand">
           {opts.cancelLabel ?? "Cancel"}
         </button>
+        {opts.extraLabel && (
+          <button type="button" onClick={() => onAnswer("extra")} className="btn bg-tile hover:bg-sand">
+            {opts.extraLabel}
+          </button>
+        )}
         <button
           type="submit"
           disabled={!ok}

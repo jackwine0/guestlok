@@ -9,6 +9,8 @@ import { createContext, useContext } from "react";
  *   toast("Couldn’t save", { tone: "error" });
  *   toast("Ada is at the gate", { tone: "info", action: { label: "View", onClick } });
  *   if (await confirm({ title: "End event?", body: "…", confirmLabel: "End event", danger: true })) …
+ *   // A third choice: resolves "extra" when picked (true = confirm, false = cancel/close).
+ *   await confirm({ title, confirmLabel: "Save and leave", extraLabel: "Leave without saving", cancelLabel: "Keep editing" })
  *   const name = await ask({ title: "What should we call you?", label: "Your name" });
  */
 export const FeedbackContext = createContext(null);
