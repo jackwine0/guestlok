@@ -3,7 +3,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Loader } from "../components/Brand.jsx";
 import FlowSteps from "../components/FlowSteps.jsx";
-import { EmptyState, StatusChip } from "../components/Page.jsx";
+import { EmptyState, PlusChip, StatusChip } from "../components/Page.jsx";
 import PaymentCard from "../components/PaymentCard.jsx";
 import WelcomeModal from "../components/WelcomeModal.jsx";
 import { playChime } from "../lib/chime.js";
@@ -250,7 +250,10 @@ export default function EventDetail() {
                   {formatShortDate(event.starts_at)} · {formatEventTime(event.starts_at)} · {event.venue}
                 </span>
               </span>
-              <StatusChip status={event.status} className="shrink-0" />
+              <span className="shrink-0 flex items-center gap-1">
+                <PlusChip event={event} className="max-sm:hidden" />
+                <StatusChip status={event.status} />
+              </span>
             </div>
           </div>
         </div>

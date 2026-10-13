@@ -97,14 +97,12 @@ Paystack → Settings → API Keys & Webhooks → Webhook URL:
      > Hello {{1}}, your entry pass for {{2}} has been issued.<br><br>Date: {{3}}<br>Venue: {{4}}<br>Admits: {{5}}<br><br>Show the QR code on your pass at the gate. It is valid for one entry only.
    - `guestlok_invite_formal` (Formal):
      > Dear {{1}},<br><br>Your entry pass for {{2}} has been issued.<br><br>Date: {{3}}<br>Venue: {{4}}<br><br>Message from your host: {{5}}<br><br>This pass admits {{6}}. Kindly present the QR code at the entrance. It is valid for one entry only.
-   - `guestlok_invite_warm` (Warm):
-     > Hi {{1}}, your pass for {{2}} is ready.<br><br>Date: {{3}}<br>Venue: {{4}}<br><br>Message from your host: {{5}}<br><br>Your pass admits {{6}}. Show the QR at the gate. It only works once, so keep it to yourself.
-   - `guestlok_invite_faith` (Gracious):
+   - `guestlok_invite_warm` (Gracious):
      > Dear {{1}},<br><br>Your entry pass for {{2}} has been issued.<br><br>Date: {{3}}<br>Venue: {{4}}<br><br>Message from your host: {{5}}<br><br>Your pass admits {{6}}. Please show the QR code at the entrance. It is valid for one entry.
 
-   In the three styles with a note, {{5}} is the host's note (one line, up to 120 characters; a default line is used when they leave it empty). After Meta approves a template, offer it to hosts:
+   In the two styles with a note, {{5}} is the host's note (one line, up to 120 characters; a default line is used when they leave it empty). After Meta approves a template, offer it to hosts:
    ```sql
-   update pricing_settings set wa_templates = '{guestlok_invite,guestlok_invite_formal,guestlok_invite_warm,guestlok_invite_faith}';
+   update pricing_settings set wa_templates = '{guestlok_invite,guestlok_invite_formal,guestlok_invite_warm}';
    ```
 4. **Secrets and functions:**
 

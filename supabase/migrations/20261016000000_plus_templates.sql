@@ -6,7 +6,7 @@
 -- 2. Message styles: hosts pick one of your approved WhatsApp templates and can add a
 --    short note. List a template here only after Meta has approved it:
 --      update public.pricing_settings
---         set wa_templates = '{guestlok_invite,guestlok_invite_formal,guestlok_invite_warm,guestlok_invite_faith}';
+--         set wa_templates = '{guestlok_invite,guestlok_invite_formal,guestlok_invite_warm}';
 -- 3. Daily limit: every Plus event sends from your one number, which Meta limits to a
 --    number of people per 24 hours (250 until your business is verified). Sends stop
 --    there instead of failing; raise it when Meta raises yours:

@@ -28,8 +28,8 @@ type Slot = 'name' | 'event' | 'when' | 'venue' | 'admits' | 'note'
 const TEMPLATES: Record<string, { slots: Slot[]; defaultNote?: string }> = {
   guestlok_invite: { slots: ['name', 'event', 'when', 'venue', 'admits'] },
   guestlok_invite_formal: { slots: ['name', 'event', 'when', 'venue', 'note', 'admits'], defaultNote: 'We look forward to your presence.' },
-  guestlok_invite_warm: { slots: ['name', 'event', 'when', 'venue', 'note', 'admits'], defaultNote: 'We can’t wait to celebrate with you!' },
-  guestlok_invite_faith: { slots: ['name', 'event', 'when', 'venue', 'note', 'admits'], defaultNote: 'We look forward to sharing this day with you.' },
+  // "Gracious" style; the Meta template with this wording is named guestlok_invite_warm.
+  guestlok_invite_warm: { slots: ['name', 'event', 'when', 'venue', 'note', 'admits'], defaultNote: 'We look forward to sharing this day with you.' },
 }
 
 // WhatsApp rejects variables with new lines, tabs or more than 4 spaces in a row.

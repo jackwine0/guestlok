@@ -25,16 +25,8 @@ export const WA_STYLES = [
       `Dear ${v.name},\n\nYour entry pass for ${v.event} has been issued.\n\nDate: ${v.when}\nVenue: ${v.venue}\n\nMessage from your host: ${v.note}\n\nThis pass admits ${v.admits}. Kindly present the QR code at the entrance. It is valid for one entry only.`,
   },
   {
+    // The Meta template for this wording is named guestlok_invite_warm (the old Warm text was rejected).
     id: "guestlok_invite_warm",
-    label: "Warm",
-    blurb: "Birthdays, owambes, house parties.",
-    note: true,
-    defaultNote: "We can’t wait to celebrate with you!",
-    body: (v) =>
-      `Hi ${v.name}, your pass for ${v.event} is ready.\n\nDate: ${v.when}\nVenue: ${v.venue}\n\nMessage from your host: ${v.note}\n\nYour pass admits ${v.admits}. Show the QR at the gate. It only works once, so keep it to yourself.`,
-  },
-  {
-    id: "guestlok_invite_faith",
     label: "Gracious",
     blurb: "Thanksgivings, dedications, burials.",
     note: true,

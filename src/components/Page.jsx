@@ -23,6 +23,16 @@ export function StatusChip({ status, className = "" }) {
   return <span className={`chip ${s.cls} ${className}`}>{s.text}</span>;
 }
 
+/** "Plus" tag for events where Guestlok sends the invites. Renders nothing otherwise. */
+export function PlusChip({ event, className = "" }) {
+  if (event?.delivery !== "plus") return null;
+  return (
+    <span className={`chip bg-brown text-cream ${className}`} title="Plus: Guestlok sends the invites">
+      Plus
+    </span>
+  );
+}
+
 /** In-app empty / locked / not-found state, inside a white card. */
 export function EmptyState({ icon: Icon, title, body, children }) {
   return (

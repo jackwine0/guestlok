@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { KeyholeDisc, Loader, SunMark } from "../components/Brand.jsx";
 import { formatEventDate, formatEventTime, formatShortDate } from "../lib/format.js";
-import { StatusChip } from "../components/Page.jsx";
+import { PlusChip, StatusChip } from "../components/Page.jsx";
 import { supabase } from "../lib/supabase.js";
 import { useTitle } from "../lib/useTitle.js";
 
@@ -112,6 +112,7 @@ function NextUp({ event, now }) {
       <div className="flex items-center gap-2 pr-16">
         <span className="text-[15px] text-brown-soft">Next up</span>
         <StatusChip status={event.status} />
+        <PlusChip event={event} />
       </div>
       <h2 className="text-[34px] sm:text-[48px] font-normal tracking-[-0.04em] leading-[1.02] pr-12 break-words">{event.name}</h2>
       <div className="flex flex-wrap gap-2 text-[15px]">
@@ -189,7 +190,10 @@ function EventGrid({ title, events }) {
           return (
             <Link key={e.id} to={`/app/events/${e.id}`} className="group rounded-[30px] sm:rounded-[32px] bg-white p-[22px] sm:p-6 flex flex-col gap-4 hover:-translate-y-0.5 transition">
               <div className="flex items-center justify-between gap-2">
-                <StatusChip status={e.status} />
+                <span className="flex items-center gap-1.5">
+                  <StatusChip status={e.status} />
+                  <PlusChip event={e} />
+                </span>
                 <span className="w-10 h-10 rounded-full border-[1.5px] border-tile inline-flex items-center justify-center group-hover:bg-ochre group-hover:border-ochre transition">
                   <ArrowUpRight size={18} aria-hidden="true" />
                 </span>
