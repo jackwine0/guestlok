@@ -219,7 +219,9 @@ export default function Login() {
             </button>
           </p>
           <p className="mt-10 text-xs text-brown-soft/80">
-            By continuing you agree to our Terms and Privacy Policy. Your guests never need an account.
+            By continuing you agree to our{" "}
+            <Link to="/terms" className="underline underline-offset-2 hover:text-brown">Terms</Link> and{" "}
+            <Link to="/privacy" className="underline underline-offset-2 hover:text-brown">Privacy Policy</Link>. Your guests never need an account.
           </p>
         </div>
       </main>

@@ -71,6 +71,7 @@ The app (`src/lib/pricing.js`) and the database (`gl_plus_extra_kobo`) use the s
    9. `20261014000000_whatsapp_ticket_preview.sql`
    10. `20261015000000_short_links.sql`
    11. `20261016000000_plus_templates.sql`
+   12. `20261017000000_account_deletion.sql` (keeps payment records, unlinked, when a host deletes their account)
 3. Set your real prices (see *Pricing model*).
 4. **Auth → URL Configuration:** Site URL = your domain; add `http://localhost:5173` to Redirect URLs for local dev.
 
@@ -82,6 +83,7 @@ npx supabase functions deploy paystack-init
 npx supabase functions deploy paystack-verify
 npx supabase functions deploy paystack-webhook --no-verify-jwt
 npx supabase functions deploy sender-ticket --no-verify-jwt   # ticket images for helpers' WhatsApp sends
+npx supabase functions deploy delete-account                    # Account → Delete my account
 ```
 
 Paystack → Settings → API Keys & Webhooks → Webhook URL:
@@ -116,6 +118,16 @@ npx supabase functions deploy whatsapp-webhook --no-verify-jwt
 
 5. **Webhook:** Meta app → WhatsApp → Configuration → Callback URL `https://YOUR_PROJECT_REF.supabase.co/functions/v1/whatsapp-webhook`, Verify token = `WA_VERIFY_TOKEN`, subscribe to **messages**.
 6. **Test without paying:** `update events set status='active', headcount=100, delivery='plus', wa_quota=20 where id='…';` then Guests → Send all.
+
+### Meta app review (publishing the WhatsApp app)
+
+Meta asks for these links. They're pages in the app:
+
+- Privacy policy URL: `https://your-domain.com/privacy`
+- Terms of service URL: `https://your-domain.com/terms`
+- User data deletion: choose **Data deletion instructions URL** and use `https://your-domain.com/privacy` (the "Deleting your data" section explains how).
+
+The policy and terms are a plain-language starting point; have a lawyer review them before you rely on them.
 
 ### 4. Run the app
 

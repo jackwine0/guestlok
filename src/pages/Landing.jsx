@@ -796,7 +796,7 @@ function ResultTile({ tone, word, sub, icon: Icon }) {
 
 const FOOTER_COLS = [
   { title: "Product", links: [["How it works", "#how"], ["Features", "#features"], ["Pricing", "#pricing"], ["FAQ", "#faq"]] },
-  { title: "Help", links: [["Contact us", "mailto:hello@guestlok.com"], ["Sign in", "/login"], ["My events", "/app"]] },
+  { title: "Help", links: [["Contact us", "mailto:hello@guestlok.com"], ["Sign in", "/login"], ["My events", "/app"], ["Privacy policy", "/privacy"], ["Terms", "/terms"]] },
 ];
 
 function Footer({ startHref }) {

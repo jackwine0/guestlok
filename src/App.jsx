@@ -15,6 +15,8 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
 const Scanner = lazy(() => import("./pages/Scanner.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 const AppNotFound = lazy(() => import("./pages/AppNotFound.jsx"));
+const Account = lazy(() => import("./pages/Account.jsx"));
+const Legal = lazy(() => import("./pages/Legal.jsx"));
 
 function RequireAuth({ children }) {
   const { session, loading } = useAuth();
@@ -50,6 +52,8 @@ export default function App() {
         <Route path="/send/:token" element={<Sender />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/scan/:eventId" element={<Scanner />} />
+        <Route path="/privacy" element={<Legal doc="privacy" />} />
+        <Route path="/terms" element={<Legal doc="terms" />} />
         <Route
           path="/app"
           element={
@@ -60,6 +64,7 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="events/new" element={<NewEvent />} />
+          <Route path="account" element={<Account />} />
           <Route path="events/:id" element={<EventDetail />}>
             <Route index element={<EventOverview />} />
             <Route path="guests" element={<EventGuests />} />

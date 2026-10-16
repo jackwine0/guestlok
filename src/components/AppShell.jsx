@@ -2,7 +2,6 @@ import { LogOut } from "lucide-react";
 import { Suspense, useEffect } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth.jsx";
-import { useFeedback } from "../lib/feedback.js";
 import { supabase } from "../lib/supabase.js";
 import { preloadAppPages } from "../pages/appPages.js";
 import { Loader, Wordmark } from "./Brand.jsx";
@@ -64,36 +63,29 @@ export default function AppShell() {
 
 function NameBadge({ user }) {
   const fullName = user?.user_metadata?.full_name?.trim();
-  const { ask, toast } = useFeedback();
-
-  async function addName() {
-    const name = await ask({
-      title: "What should we call you?",
-      body: "Shown in your dashboard. Guests see the host names you set on each event.",
-      label: "Your name",
-      placeholder: "Samuel Akande",
-    });
-    if (!name) return;
-    const { error } = await supabase.auth.updateUser({ data: { full_name: name.slice(0, 80) } });
-    toast(error ? "Couldn’t save your name. Try again." : `Nice to meet you, ${name.split(" ")[0]}`, { tone: error ? "error" : "success" });
-  }
-
   if (!fullName) {
     return (
-      <button type="button" onClick={addName} className="h-12 px-5 rounded-full bg-white text-[15px] underline underline-offset-4">
-        Add your name
-      </button>
+      <Link to="/app/account" className="h-12 px-5 rounded-full bg-white text-[15px] inline-flex items-center underline underline-offset-4">
+        Your account
+      </Link>
     );
   }
 
   return (
-    <span className="h-12 pl-1.5 pr-1.5 sm:pr-5 rounded-full bg-white inline-flex items-center gap-2.5" title={user.email}>
+    <NavLink
+      to="/app/account"
+      aria-label={`Your account (${fullName})`}
+      title="Your account"
+      className={({ isActive }) =>
+        `h-12 pl-1.5 pr-1.5 sm:pr-5 rounded-full inline-flex items-center gap-2.5 transition hover:-translate-y-px ${isActive ? "bg-brown text-cream" : "bg-white"}`
+      }
+    >
       <span className="w-9 h-9 rounded-full bg-ochre flex items-center justify-center text-[15px] font-semibold" aria-hidden="true">
         {fullName[0].toUpperCase()}
       </span>
       <span className="hidden sm:inline text-[15px] truncate max-w-[140px]">{fullName.split(" ")[0]}</span>
       <span className="sr-only sm:hidden">{fullName}</span>
-    </span>
+    </NavLink>
   );
 }
 
