@@ -124,8 +124,10 @@ export default function Settings() {
         <p className="page-sub">Event details, your plan, and closing the gate after the party.</p>
       </div>
 
+      {/* Desktop: details then the danger zone on the left, plan cards on the right, so neither side
+          leaves a gap. Phones: details, plan, then the danger zone last. */}
       <div className="grid gap-[18px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
-        <form id="event-details" onSubmit={save} className="bento flex flex-col gap-7">
+        <form id="event-details" onSubmit={save} className="bento flex flex-col gap-7 lg:col-start-1 lg:row-start-1">
           <fieldset disabled={locked} className="flex flex-col gap-7 disabled:opacity-60 min-w-0">
             <Group title="The event" hint="Shown at the top of every invite.">
               <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
@@ -161,7 +163,7 @@ export default function Settings() {
           </fieldset>
         </form>
 
-        <div className="flex flex-col gap-[18px]">
+        <div className="flex flex-col gap-[18px] lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <section className="bento" aria-labelledby="plan-title">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -187,10 +189,9 @@ export default function Settings() {
 
           {locked && <EndedPanel compact event={event} guests={guests} onEventChange={setEvent} />}
         </div>
-      </div>
 
-      {/* Danger zone: last on the page, away from everyday settings */}
-      <section className="bento !py-2 sm:!py-3" aria-labelledby="danger-title">
+        {/* Danger zone: last on phones, under the details on desktop */}
+        <section className="bento !py-2 sm:!py-3 lg:col-start-1 lg:row-start-2" aria-labelledby="danger-title">
         <h3 id="danger-title" className="sr-only">Close or delete this event</h3>
         <ul className="divide-y divide-tile">
           {!locked && (
@@ -213,6 +214,7 @@ export default function Settings() {
           </DangerRow>
         </ul>
       </section>
+      </div>
 
       {/* Save bar (portaled so the tab animation can't trap "fixed") */}
       {createPortal(
