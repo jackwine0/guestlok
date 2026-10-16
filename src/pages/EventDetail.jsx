@@ -219,13 +219,15 @@ export default function EventDetail() {
     <div className="flex flex-col gap-[18px]">
       {/* Phones: five equal tabs stick under the top bar; the event pill scrolls away. */}
       {live && (
-        <div className="sm:hidden sticky top-[76px] z-20 -mx-4 px-4 pb-2 bg-shell/95 backdrop-blur supports-[backdrop-filter]:bg-shell/80">
+        <div className="sm:hidden sticky top-[76px] z-30 -mx-4 px-4 pb-2 bg-shell/95 backdrop-blur supports-[backdrop-filter]:bg-shell/80">
           <PhoneNav guests={guests} requests={requests.length} />
         </div>
       )}
 
-      {/* Section tabs + event pill. Sticks under the top bar from tablet up. */}
-      <div className="sm:sticky sm:top-[76px] z-20 -mx-4 sm:-mx-7 px-4 sm:px-7 sm:pb-3 sm:bg-shell/95 sm:backdrop-blur sm:supports-[backdrop-filter]:bg-shell/80">
+      {/* Section tabs + event pill. Sticks under the top bar from tablet up. On phones it's a plain
+          row that must scroll *under* the sticky tabs, so it only gets a z-index from tablet up
+          (z-index works on flex children even without position). */}
+      <div className="sm:sticky sm:top-[76px] sm:z-20 -mx-4 sm:-mx-7 px-4 sm:px-7 sm:pb-3 sm:bg-shell/95 sm:backdrop-blur sm:supports-[backdrop-filter]:bg-shell/80">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {live ? (
             <div className="max-sm:hidden max-w-full">
