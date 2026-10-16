@@ -9,7 +9,19 @@ import { formatNaira, formatShortDate } from "../lib/format.js";
 import { supabase } from "../lib/supabase.js";
 import { useTitle } from "../lib/useTitle.js";
 
-const KIND = { plan: "Plan", upgrade: "Plus upgrade", topup: "Extra sends" };
+const tierName = (r) => r.tiers?.name ?? (r.tier_id ? r.tier_id[0].toUpperCase() + r.tier_id.slice(1) : "Plan");
+
+/** What a payment bought, in the same words as the rest of the app: "Owambe" + a Plus tag, etc. */
+function PaymentType({ row: r }) {
+  const plusTag = <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-brown text-cream">Plus</span>;
+  if (r.kind === "upgrade") return <>Upgrade to {plusTag}</>;
+  if (r.kind === "topup") return <>{r.invites ? `${r.invites} extra sends` : "Extra sends"} {plusTag}</>;
+  return (
+    <>
+      {tierName(r)} plan {r.delivery === "plus" && plusTag}
+    </>
+  );
+}
 const FIRST_PAGE = 5;
 const MORE = 10;
 
@@ -307,7 +319,7 @@ function Payments({ count }) {
   const load = useCallback(async (from, size) => {
     const { data } = await supabase
       .from("payments")
-      .select("id, reference, amount_kobo, kind, created_at, paid_at, event_id, event_name, events(name)")
+      .select("id, reference, amount_kobo, kind, delivery, invites, tier_id, created_at, paid_at, event_id, event_name, events(name), tiers(name)")
       .eq("status", "success")
       .order("created_at", { ascending: false })
       .range(from, from + size - 1);
@@ -356,7 +368,7 @@ function Payments({ count }) {
           {/* Column labels (tablet up) */}
           <div className="hidden sm:grid grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_96px_110px] gap-4 px-7 py-2.5 text-[13px] text-mute border-y border-tile">
             <span>Event</span>
-            <span>Type</span>
+            <span>What you bought</span>
             <span>Date</span>
             <span className="text-right">Amount</span>
           </div>
@@ -377,9 +389,9 @@ function Payments({ count }) {
                     <span className="block text-[12px] text-mute font-mono truncate" title="Paystack reference">{r.reference}</span>
                   </div>
                   <p className="text-[15px] tabular-nums text-right sm:hidden">{formatNaira(r.amount_kobo)}</p>
-                  <p className="text-[13px] text-brown-soft sm:text-[14px] sm:text-brown col-span-2 sm:col-span-1">
-                    {KIND[r.kind] ?? "Plan"}
-                    <span className="sm:hidden"> · {formatShortDate(r.paid_at ?? r.created_at)}</span>
+                  <p className="text-[13px] text-brown-soft sm:text-[14px] sm:text-brown col-span-2 sm:col-span-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                    <PaymentType row={r} />
+                    <span className="sm:hidden">· {formatShortDate(r.paid_at ?? r.created_at)}</span>
                   </p>
                   <p className="hidden sm:block text-[14px] text-brown-soft">{formatShortDate(r.paid_at ?? r.created_at)}</p>
                   <p className="hidden sm:block text-[15px] tabular-nums text-right">{formatNaira(r.amount_kobo)}</p>
