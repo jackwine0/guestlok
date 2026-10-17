@@ -118,6 +118,7 @@ const DOCS = {
         "Your guests and your messages",
         [
           "Only add people you are genuinely inviting, and only send invites to people who would expect one from you.",
+          "When you add guests you confirm you have their permission to share their name and number with Guestlok for your event.",
           "Don’t use Guestlok for advertising, promotions, spam, or anything illegal, hateful or misleading. We may suspend accounts that do, without refund.",
           "You’re responsible for the photos and words you put on your invites.",
         ],

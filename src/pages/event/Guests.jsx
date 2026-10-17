@@ -43,7 +43,43 @@ export default function Guests() {
   const [limit, setLimit] = useState(PAGE);
   const [sending, setSending] = useState(() => params.get("send") === "1");
   const [mode, setMode] = useState(null); // Plus: 'guestlok' | 'phone', picked when they tap Send all
-  const { toast } = useFeedback();
+  const { toast, confirm } = useFeedback();
+
+  // Data protection: the first time a host adds guests to an event, they confirm they may
+  // share these contacts with us. Saved on the event (migration 14), so it's asked once.
+  async function openPanel(kind) {
+    const key = `gl_consent_${event.id}`;
+    let agreed = !!event.guest_consent_at;
+    try {
+      agreed ||= localStorage.getItem(key) === "1";
+    } catch {
+      /* storage blocked */
+    }
+    if (!agreed) {
+      const ok = await confirm({
+        title: "Before you add guests",
+        body: "Guestlok keeps each guest’s name and WhatsApp number so we can deliver their invite and check them in at the gate.",
+        points: [
+          "These are people you’re inviting, who’d expect to hear from you about this event.",
+          "You have their permission to share their name and number with Guestlok for it.",
+          "We only use them for this event, never for marketing. You can delete them any time.",
+        ],
+        confirmLabel: "I have their permission",
+        cancelLabel: "Not now",
+      });
+      if (!ok) return;
+      try {
+        localStorage.setItem(key, "1");
+      } catch {
+        /* storage blocked */
+      }
+      if ("guest_consent_at" in event) {
+        const { data } = await supabase.from("events").update({ guest_consent_at: new Date().toISOString() }).eq("id", event.id).select("*").single();
+        if (data) setEvent(data);
+      }
+    }
+    setPanel(kind);
+  }
 
   function closeQueue() {
     setSending(false);
@@ -115,10 +151,10 @@ export default function Guests() {
         )}
         {!locked && (
           <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 w-full xl:w-auto [&>button]:whitespace-nowrap">
-            <button type="button" aria-haspopup="dialog" onClick={() => setPanel("add")} className="h-[52px] px-3 sm:px-5 rounded-full bg-brown text-cream inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition">
+            <button type="button" aria-haspopup="dialog" onClick={() => openPanel("add")} className="h-[52px] px-3 sm:px-5 rounded-full bg-brown text-cream inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition">
               <UserPlus size={18} aria-hidden="true" /> Add guest
             </button>
-            <button type="button" aria-haspopup="dialog" onClick={() => setPanel("import")} className="h-[52px] px-3 sm:px-5 rounded-full bg-white inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition">
+            <button type="button" aria-haspopup="dialog" onClick={() => openPanel("import")} className="h-[52px] px-3 sm:px-5 rounded-full bg-white inline-flex items-center justify-center gap-2 whitespace-nowrap hover:-translate-y-px transition">
               <Upload size={18} aria-hidden="true" className="shrink-0" /> <span>Import<span className="md:max-lg:hidden"> CSV</span></span>
             </button>
             {guests.length > 0 && (
@@ -261,7 +297,7 @@ export default function Guests() {
             <p className="text-[20px] tracking-[-0.02em]">No guests yet</p>
             <p className="text-brown-soft max-w-sm">Add people one by one, or import a CSV from Google Sheets or Excel.</p>
             {!locked && (
-              <button type="button" onClick={() => setPanel("add")} className="mt-2 btn-dark">
+              <button type="button" onClick={() => openPanel("add")} className="mt-2 btn-dark">
                 <UserPlus size={17} aria-hidden="true" /> Add your first guest
               </button>
             )}
@@ -305,7 +341,7 @@ export default function Guests() {
         />
       )}
 
-      <Modal open={!locked && panel === "add"} onClose={() => setPanel(null)} title="Add a guest" description={`${left} of ${event.headcount} spaces left on your plan.`}>
+      <Modal open={!locked && panel === "add"} onClose={() => setPanel(null)} title="Add a guest" description={`${left} of ${event.headcount} spaces left on your plan. Only add people who expect to hear from you about this event.`}>
         <AddGuest
           eventId={event.id}
           sides={sides}
@@ -318,7 +354,7 @@ export default function Guests() {
         />
       </Modal>
 
-      <Modal open={!locked && panel === "import"} onClose={() => setPanel(null)} title="Import guests" description="Upload a CSV from Google Sheets or Excel. We’ll show you a preview first." size="lg">
+      <Modal open={!locked && panel === "import"} onClose={() => setPanel(null)} title="Import guests" description="Upload a CSV from Google Sheets or Excel. We’ll show you a preview first. Only include people who expect to hear from you about this event." size="lg">
         <GuestImport
           eventId={event.id}
           onDone={(n) => {

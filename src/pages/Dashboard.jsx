@@ -1,5 +1,5 @@
-import { ArrowUpRight, CalendarDays, MapPin, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowUpRight, CalendarDays, MapPin, Plus, Search, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { KeyholeDisc, Loader, SunMark } from "../components/Brand.jsx";
 import { formatEventDate, formatEventTime, formatShortDate } from "../lib/format.js";
@@ -10,7 +10,12 @@ import { useTitle } from "../lib/useTitle.js";
 
 const DAY = 24 * 3600_000;
 
+const SHOW = 6; // cards per section at first
+const STEP = 12; // then this many more per tap
+
 function totals(e) {
+  // From the event_summaries view (migration 13); older setups send the guest rows instead.
+  if (e.invited != null) return { invited: e.invited, arrived: e.arrived ?? 0 };
   const list = e.guests ?? [];
   return {
     invited: list.reduce((n, g) => n + g.admits, 0),
@@ -22,26 +27,33 @@ export default function Dashboard() {
   const [events, setEvents] = useState(null);
   const [error, setError] = useState(null);
   const [now] = useState(() => Date.now());
+  const [query, setQuery] = useState("");
   useTitle("My events");
 
   useEffect(() => {
     // Events end by themselves 24h after they start (fails quietly before migration 5).
     Promise.resolve(supabase.rpc("end_my_overdue_events"))
       .catch(() => null)
-      .then(() => supabase
-      .from("events")
-      .select("*, guests(admits, checked_in_at)")
-      .order("starts_at", { ascending: true })
-      .then(({ data, error }) => {
-        if (error) setError(error.message);
-        setEvents(data ?? []);
-      }));
+      .then(async () => {
+        // Totals are added up in the database, so this stays quick with hundreds of events.
+        let res = await supabase.from("event_summaries").select("*").order("starts_at", { ascending: true });
+        if (res.error) {
+          // Before migration 13: fetch the guest rows and add them up here.
+          res = await supabase.from("events").select("*, guests(admits, checked_in_at)").order("starts_at", { ascending: true });
+        }
+        if (res.error) setError(res.error.message);
+        setEvents(res.data ?? []);
+      });
   }, []);
 
   if (!events) return <Loader label="Loading your events" />;
 
+  const q = query.trim().toLowerCase();
+  const matches = (e) => !q || e.name.toLowerCase().includes(q) || (e.venue ?? "").toLowerCase().includes(q) || (e.host_names ?? "").toLowerCase().includes(q);
   const upcoming = events.filter((e) => new Date(e.starts_at).getTime() >= now - 12 * 3600_000 && e.status !== "ended");
-  const past = events.filter((e) => !upcoming.includes(e)).reverse();
+  const t = (e) => new Date(e.starts_at).getTime();
+  upcoming.sort((a, b) => t(a) - t(b)); // soonest first
+  const past = events.filter((e) => !upcoming.includes(e)).sort((a, b) => t(b) - t(a)); // most recent first
   const [next, ...later] = upcoming;
   const all = events.map(totals);
   const invitedAll = all.reduce((n, t) => n + t.invited, 0);
@@ -89,8 +101,31 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {later.length > 0 && <EventGrid title="Coming up" events={later} />}
-          {past.length > 0 && <EventGrid title="Past" events={past} />}
+          {/* Lots of events: search, and each section starts short */}
+          {events.length > SHOW + 2 && (
+            <div className="relative mt-2 max-w-md">
+              <label htmlFor="ev-search" className="sr-only">Search your events</label>
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-brown-soft pointer-events-none" aria-hidden="true" />
+              <input
+                id="ev-search"
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={`Search ${events.length} events`}
+                className="w-full h-12 rounded-full bg-white pl-11 pr-11 text-[16px] outline-none focus:ring-2 focus:ring-brown"
+              />
+              {query && (
+                <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full hover:bg-tile inline-flex items-center justify-center">
+                  <X size={16} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          )}
+          {q && !later.some(matches) && !past.some(matches) && (
+            <p className="px-1 text-brown-soft">No events match “{query.trim()}”.</p>
+          )}
+          {later.some(matches) && <EventGrid key={`l${q}`} title="Coming up" events={later.filter(matches)} expanded={!!q} />}
+          {past.some(matches) && <EventGrid key={`p${q}`} title="Past" events={past.filter(matches)} expanded={!!q} />}
         </>
       )}
     </div>
@@ -179,12 +214,26 @@ function Stat({ label, value, chip }) {
   );
 }
 
-function EventGrid({ title, events }) {
+/** A section of event cards that starts short and grows a step at a time; controls sit at the bottom. */
+function EventGrid({ title, events, expanded = false }) {
+  const [limit, setLimit] = useState(expanded ? Infinity : SHOW);
+  const headRef = useRef(null);
+  const shown = events.slice(0, limit);
+  const left = events.length - shown.length;
+
+  function fold() {
+    setLimit(SHOW);
+    // Back to the heading, so you're not left at the bottom of a much shorter page.
+    requestAnimationFrame(() => headRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }
+
   return (
     <section className="flex flex-col gap-3 mt-4">
-      <h2 className="section-title px-1">{title}</h2>
+      <h2 ref={headRef} className="section-title px-1 scroll-mt-24">
+        {title} <span className="text-brown-soft text-[0.7em]">{events.length}</span>
+      </h2>
       <div className="grid gap-[18px] grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))]">
-        {events.map((e) => {
+        {shown.map((e) => {
           const { invited, arrived } = totals(e);
           const share = e.status === "ended" ? (invited ? arrived / invited : 0) : e.headcount ? invited / e.headcount : 0;
           return (
@@ -220,6 +269,20 @@ function EventGrid({ title, events }) {
           );
         })}
       </div>
+      {(left > 0 || shown.length > SHOW) && (
+        <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+          {left > 0 && (
+            <button type="button" onClick={() => setLimit((n) => n + STEP)} className="h-12 px-6 rounded-full bg-white hover:bg-sand text-[15px] inline-flex items-center gap-2 transition">
+              Show {Math.min(STEP, left)} more <span className="text-brown-soft">· {left} left</span>
+            </button>
+          )}
+          {shown.length > SHOW && !expanded && (
+            <button type="button" onClick={fold} className="h-12 px-5 rounded-full text-[15px] text-brown-soft hover:text-brown hover:bg-white transition">
+              Show fewer
+            </button>
+          )}
+        </div>
+      )}
     </section>
   );
 }
