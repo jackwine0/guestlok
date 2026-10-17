@@ -32,7 +32,9 @@ export default function Overview() {
   const arrived = sum(arrivedGuests);
   const onTheDay = event.status === "ended" || now >= startsAt - 4 * HOUR || arrived > 0;
 
-  const withPhone = guests.filter((g) => g.phone);
+  // Guests who can get an invite: they have a number, or already got one (numbers are
+  // removed 90 days after an event, but their sent invites still count).
+  const withPhone = guests.filter((g) => g.phone || hasInvite(g));
   const sent = withPhone.filter(hasInvite).length;
   const unsent = guests.filter(needsInvite).length;
   const lastQuarter = sum(arrivedGuests.filter((g) => now - new Date(g.checked_in_at).getTime() < 15 * 60_000));

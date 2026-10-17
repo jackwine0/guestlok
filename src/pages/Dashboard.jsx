@@ -5,6 +5,7 @@ import { KeyholeDisc, Loader, SunMark } from "../components/Brand.jsx";
 import { formatEventDate, formatEventTime, formatShortDate } from "../lib/format.js";
 import { PlusChip, StatusChip } from "../components/Page.jsx";
 import { supabase } from "../lib/supabase.js";
+import { tidyOldGuestData } from "../lib/retention.js";
 import { useTitle } from "../lib/useTitle.js";
 
 
@@ -35,6 +36,8 @@ export default function Dashboard() {
     Promise.resolve(supabase.rpc("end_my_overdue_events"))
       .catch(() => null)
       .then(async () => {
+        // Guest numbers go 90 days after an event ends (in the background).
+        tidyOldGuestData();
         // Totals are added up in the database, so this stays quick with hundreds of events.
         let res = await supabase.from("event_summaries").select("*").order("starts_at", { ascending: true });
         if (res.error) {

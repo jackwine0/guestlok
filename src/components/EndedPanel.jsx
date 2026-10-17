@@ -4,6 +4,7 @@ import { downloadAttendance, reopenUntil } from "../lib/attendance.js";
 import { friendlyError } from "../lib/errors.js";
 import { useFeedback } from "../lib/feedback.js";
 import { formatEventTime, formatShortDate } from "../lib/format.js";
+import { KEEP_PHONES_DAYS, phonesRemovedOn } from "../lib/retention.js";
 import { supabase } from "../lib/supabase.js";
 import { ButtonSpinner, KeyholeDisc } from "./Brand.jsx";
 
@@ -14,6 +15,7 @@ export default function EndedPanel({ event, guests, onEventChange, className = "
   const invited = guests.reduce((n, g) => n + g.admits, 0);
   const came = guests.filter((g) => g.checked_in_at).reduce((n, g) => n + g.admits, 0);
   const until = reopenUntil(event);
+  const removed = phonesRemovedOn(event);
   const how = event.ended_by === "auto" ? "automatically, 24 hours after the start" : "by you";
 
   async function reopen() {
@@ -50,7 +52,13 @@ export default function EndedPanel({ event, guests, onEventChange, className = "
           <h2 id="ended-title" className={`mt-2 ${compact ? "text-[32px] font-normal tracking-[-0.04em] leading-[1.05]" : "hero-title"}`}>
             {came} of {invited} guests came
           </h2>
-          <p className="mt-2 text-sand max-w-lg">The gate is closed and the list is locked. Everything stays here for your records.</p>
+          <p className="mt-2 text-sand max-w-lg">
+            The gate is closed and the list is locked. Names and attendance stay here for your records.{" "}
+            {removed &&
+              (event.phones_cleared_at
+                ? `Guests’ phone numbers were removed on ${formatShortDate(removed.toISOString())} to protect their privacy.`
+                : `Guests’ phone numbers are removed on ${formatShortDate(removed.toISOString())}, ${KEEP_PHONES_DAYS} days after the event. Download attendance if you need them.`)}
+          </p>
         </div>
         <div className={`flex flex-col gap-2.5 shrink-0 ${compact ? "" : "sm:flex-row"}`}>
           <button type="button" onClick={download} disabled={!guests.length} className="h-[52px] px-6 rounded-full bg-ochre text-brown font-medium inline-flex items-center justify-center gap-2 hover:brightness-95 disabled:opacity-50">

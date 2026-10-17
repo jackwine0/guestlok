@@ -74,6 +74,7 @@ The app (`src/lib/pricing.js`) and the database (`gl_plus_extra_kobo`) use the s
    12. `20261017000000_account_deletion.sql` (keeps payment records, unlinked, when a host deletes their account)
    13. `20261018000000_event_summaries.sql` (My events adds up guest totals in the database, so it stays fast with many events)
    14. `20261019000000_guest_consent.sql` (remembers that a host confirmed they have permission to add their guests)
+   15. `20261020000000_guest_data_retention.sql` (deletes guest phone numbers 90 days after an event; optional pg_cron block at the end)
 3. Set your real prices (see *Pricing model*).
 4. **Auth → URL Configuration:** Site URL = your domain; add `http://localhost:5173` to Redirect URLs for local dev.
 

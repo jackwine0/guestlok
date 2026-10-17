@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Wordmark } from "../components/Brand.jsx";
 import { useTitle } from "../lib/useTitle.js";
 
-const UPDATED = "16 October 2026";
+const UPDATED = "17 October 2026";
 const EMAIL = "hello@guestlok.com";
 
 // Plain-language policies. Each section: [heading, ...paragraphs]; a paragraph that is an
@@ -58,7 +58,12 @@ const DOCS = {
       ],
       [
         "How long we keep it",
-        "Events, guest lists and photos stay until the host deletes the event or their account. Payment records (amount, date, reference) are kept for as long as tax and accounting law requires, without your name or email once your account is deleted.",
+        [
+          "Guests’ phone numbers, their WhatsApp delivery details and their ticket pictures are deleted automatically 90 days after the event ends.",
+          "Guests’ names, sides and attendance stay with the event so the host keeps their records, until the host deletes the event or their account.",
+          "Events and cover photos stay until the host deletes them or their account.",
+          "Payment records (amount, date, reference) are kept for as long as tax and accounting law requires, without your name or email once your account is deleted.",
+        ],
       ],
       [
         "Your rights",

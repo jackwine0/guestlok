@@ -12,15 +12,23 @@ export async function deleteEvent(event) {
     const coverPaths = (covers ?? []).filter((f) => f.name.startsWith(event.id)).map((f) => `${owner}/${f.name}`);
     if (coverPaths.length) await supabase.storage.from("invite-covers").remove(coverPaths);
 
-    const folder = `${owner}/${event.id}`;
-    const { data: tickets } = await supabase.storage.from("invite-tickets").list(folder, { limit: 1000 });
-    const ticketPaths = (tickets ?? []).map((f) => `${folder}/${f.name}`);
-    if (ticketPaths.length) await supabase.storage.from("invite-tickets").remove(ticketPaths);
+    await removeTicketImages(owner, event.id);
   } catch {
     /* files are tidy-up only; never block the delete */
   }
   const { error } = await supabase.from("events").delete().eq("id", event.id);
   return error ?? null;
+}
+
+/** Removes an event's ticket pictures from storage (they're made for WhatsApp previews). */
+export async function removeTicketImages(owner, eventId) {
+  const folder = `${owner}/${eventId}`;
+  for (let round = 0; round < 20; round++) {
+    const { data: files, error } = await supabase.storage.from("invite-tickets").list(folder, { limit: 1000 });
+    if (error || !files?.length) return;
+    const { error: removeError } = await supabase.storage.from("invite-tickets").remove(files.map((f) => `${folder}/${f.name}`));
+    if (removeError || files.length < 1000) return;
+  }
 }
 
 /** The confirm-dialog options for deleting this event. */

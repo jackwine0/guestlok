@@ -13,8 +13,9 @@ import WhatsAppButton from "../../components/WhatsAppButton.jsx";
 import { useSwapMotion } from "../../lib/tabTransition.js";
 import { prepareTicketPreview } from "../../lib/whatsappTicket.js";
 import { friendlyError } from "../../lib/errors.js";
-import { inviteLink, normalizePhone, whatsappLink } from "../../lib/format.js";
+import { formatShortDate, inviteLink, normalizePhone, whatsappLink } from "../../lib/format.js";
 import { downloadAttendance } from "../../lib/attendance.js";
+import { daysUntilPhonesRemoved, phonesRemovedOn } from "../../lib/retention.js";
 import { useFeedback } from "../../lib/feedback.js";
 import { hasInvite, inviteDetail, inviteStatus, needsInvite } from "../../lib/guestStatus.js";
 import { canShareFiles } from "../../lib/ticketExport.jsx";
@@ -62,7 +63,7 @@ export default function Guests() {
         points: [
           "These are people you’re inviting, who’d expect to hear from you about this event.",
           "You have their permission to share their name and number with Guestlok for it.",
-          "We only use them for this event, never for marketing. You can delete them any time.",
+          "We only use them for this event, never for marketing, and delete their numbers 90 days after it ends.",
         ],
         confirmLabel: "I have their permission",
         cancelLabel: "Not now",
@@ -134,7 +135,11 @@ export default function Guests() {
           sub: unsent ? (plus ? "tap Send all and choose who sends" : "tap Send all to go through them") : "everyone with a number has theirs",
           tone: unsent ? "ochre" : null,
         },
-    { label: "No phone", value: noPhone, sub: noPhone ? "share their ticket yourself from ⋯" : "all guests have a number" },
+    locked && event.phones_cleared_at
+      ? { label: "Phone numbers", value: 0, sub: `removed ${formatShortDate(event.phones_cleared_at)} for your guests’ privacy` }
+      : locked && phonesRemovedOn(event)
+        ? { label: "Numbers removed in", value: daysUntilPhonesRemoved(event), sub: `days, on ${formatShortDate(phonesRemovedOn(event).toISOString())}, for your guests’ privacy` }
+        : { label: "No phone", value: noPhone, sub: noPhone ? "share their ticket yourself from ⋯" : "all guests have a number" },
   ];
 
   return (
@@ -522,7 +527,7 @@ function GuestRow({ guest, event, locked, plus, onGuestlokSend, onMore, onToast 
         <div className="min-w-0">
           <p className="text-[16px] truncate">{guest.name}</p>
           <p className="text-[13px] text-brown-soft truncate">
-            {guest.phone ? `+${guest.phone}` : "No phone"}
+            {guest.phone ? `+${guest.phone}` : event.phones_cleared_at ? "Number removed" : "No phone"}
             <span className="lg:hidden"> · admits {guest.admits}</span>
             {guest.side && <span> · {guest.side}</span>}
           </p>
@@ -619,7 +624,7 @@ function GuestSheet({ guest, event, locked, plus, onGuestlokSend, onToast, onClo
     if (!error) onClose();
   }
 
-  const details = [guest.phone ? `+${guest.phone}` : "No phone", `admits ${guest.admits}`, guest.side].filter(Boolean).join(" · ");
+  const details = [guest.phone ? `+${guest.phone}` : event.phones_cleared_at ? "Number removed" : "No phone", `admits ${guest.admits}`, guest.side].filter(Boolean).join(" · ");
 
   return (
     <Modal open onClose={onClose} title={guest.name} description={details} size="sm">
